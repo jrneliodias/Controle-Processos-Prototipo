@@ -5,9 +5,9 @@ clear all; close all; clc
 nit = 1200; ts = 0.01;
 angulo_sensor(1:nit) = 0; %u(1:nit) = '0,0\n';
 erro(1:nit) = 0;
-
+erro_soma=0;
 % %% ----- Referência
-angulo_ref(1:nit)  = 20;
+angulo_ref(1:nit)  = 70;
 % angulo_ref(1:nit/2)  = 80;
 % angulo_ref(nit/2 +1 : nit)  = 20;
 
@@ -86,10 +86,10 @@ Kd2 = 0.9;
 % q21 = -Kp2 + Ki2;
 % 
 % 
-% start = input("Start Daqduino? ","s");
-% if start == "y"
-%     daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
-% end
+start = input("Start Daqduino? ","s");
+if start == "y"
+     daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
+end
 
 %% ----- Processamento - Estimação
 
