@@ -71,7 +71,7 @@ kpid = eval(1/abs(g4pid(sdes)))
 
 % Verificação da resposta final
 
-G4pid = kpid *Gpi* Gpd *Gsmith2
+G4pid = kpid*Gpi*Gpd*Gsmith2
 
 G4pidmf = feedback(G4pid,1)
 G4mf = feedback(Gsmith2*kncomp,1)
@@ -80,5 +80,6 @@ G4mf = feedback(Gsmith2*kncomp,1)
 opt = stepDataOptions('StepAmplitude',8);
 step(G4pidmf, Gsmith,opt)
 legend('Com PID via LGR', 'Malha Aberta Simulado')
-
-
+ts=0.01
+Gpiddisc = c2d(kpid*Gpi*Gpd,ts,'tustin')
+Gpiddisc = c2d(kpid*Gpi*Gpd,ts,'matched')

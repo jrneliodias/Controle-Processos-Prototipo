@@ -80,5 +80,7 @@ G4mf = feedback(Gsmith2*kncomp,1)
 opt = stepDataOptions('StepAmplitude',60);
 step(G4pidmf,opt)
 legend('Com PID via LGR')
-
+ts = 0.01;
+Gpiddisc = c2d(kpid*Gpi*Gpd,ts,'tustin')
+Gpiddisc = c2d(kpid*Gpi*Gpd,ts,'matched')
 
