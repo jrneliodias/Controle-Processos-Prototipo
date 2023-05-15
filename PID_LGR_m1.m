@@ -8,14 +8,15 @@ s= tf('s');
 Gsmith = Kpsmith*exp(-thetasmith*s)/(tausmith*s+1);
 Gsmith2 = pade(Gsmith,1)
 step(Gsmith2)
+
 % Obter ganho para overshoot requerido
-Mpdes = 0.015;
+Mpdes = 0.05;
 csi = -log(Mpdes)/sqrt(pi^2+log(Mpdes)^2);
 
 % Tempo de acomodação desejado
-ts = 2/3
+settling_time = 2
 
-wnd = 4/(ts*csi)
+wnd = 4/(settling_time*csi)
 
 %Polo desejado
 sdes = wnd*exp(j*(pi-acos(csi)))
@@ -28,7 +29,7 @@ g4(s) = vpa((poly2sym(cell2mat(num),s)/poly2sym(cell2mat(den),s)));
 
 % Ganho não compensado
 rlocus(Gsmith2)
-kncomp = rlocfind(Gsmith2,-4+2.99*j)
+kncomp = rlocfind(Gsmith2,sdes)
 
 % Obtendo a fase do polo do compensador LEAD
 comp_plant = eval(g4(sdes))
@@ -59,7 +60,7 @@ step(G4pdmf)
 
 % Definindo o PI como zero em 2.1
 
-Gpi = tf([1 2.1],[1 0])
+Gpi = tf([1 1.55],[1 0])
 
 % Calculo do ganho final
 syms s
@@ -77,9 +78,14 @@ G4pidmf = feedback(G4pid,1)
 G4mf = feedback(Gsmith2*kncomp,1)
 
 
-opt = stepDataOptions('StepAmplitude',8);
-step(G4pidmf, Gsmith,opt)
-legend('Com PID via LGR', 'Malha Aberta Simulado')
-ts=0.01
+opt = stepDataOptions('StepAmplitude',50);
+step(G4pidmf, G4pdmf,opt)
+legend('Com PID via LGR', 'Modelo com PD')
+title("Simulação da planta com apenas o motor 1 utilizando LGR")
+
+
+Gpid = minreal(kpid*Gpi*Gpd)
+
+ts=0.01;
 Gpiddisc = c2d(kpid*Gpi*Gpd,ts,'tustin')
 Gpiddisc = c2d(kpid*Gpi*Gpd,ts,'matched')
