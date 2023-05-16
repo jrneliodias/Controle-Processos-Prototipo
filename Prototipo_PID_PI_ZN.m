@@ -16,6 +16,14 @@ pot_motor_1(1:nit)  = 0;
 pot_motor_2(1:nit) = 0;
 u = strings(1,nit); u(1:nit) = "0,0";
 
+% Iniciar o Protótipo
+start = input("Start Daqduino? ","s");
+if start == "y"
+    daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
+end
+
+%% Sintonia ZN
+
 % Coefiientes do Modelo Smith motor 1
 Kpsmith1 = 7.737
 thetasmith1 =0.65
@@ -55,6 +63,8 @@ Ki2 = ts*Kp2/Ti2;
 Kd2 = 0*Kp_zn2*Td2/ts;
 
 % Sintonia PI
+
+
 % Kp1 = 0.9*tau_zn1/(Kp_zn1*theta_zn1);
 % Ti1 = 3*theta_zn1;
 % Td1 = theta_zn1/2;
@@ -82,10 +92,6 @@ q21 = -Kp2 - 2*Kd2 + Ki2;
 q22 = Kd2;
 
 
-start = input("Start Daqduino? ","s");
-if start == "y"
-    daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
-end
 
 %% ----- Processamento - Estimação
 for k = 3:nit
@@ -123,6 +129,9 @@ end
 
 
 
+
+% Limpar a Serial
+daqduino_read
 u0 = [num2str(0),',',num2str(0),'\n'];
 daqduino_write(u0,ts);
 
