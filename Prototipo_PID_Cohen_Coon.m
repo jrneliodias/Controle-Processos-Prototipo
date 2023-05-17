@@ -1,83 +1,60 @@
-%% Controle Proporcional Integral Sintonizado por Cohen Coon
+%% Controle Proporcional Integral Sintonizado por Cohen-Coon
 clear all; close all; clc
 
 %% ----- Condições iniciais
 nit = 800; ts = 0.01;
-angulo_sensor(1:nit) = 0; %u(1:nit) = '0,0\n';
-erro(1:nit) = 0;
+angulo_sensor = zeros(1,nit); %u(1:nit) = '0,0\n';
+erro = zeros(1,nit);
 
 % %% ----- Referência
-angulo_ref(1:nit)  = 50;
+angulo_ref = 50*ones(1,nit);
 % angulo_ref(1:nit/2)  = 80;
 % angulo_ref(nit/2 +1 : nit)  = 20;
 
 % %% ----- Variável Controlada
-pot_motor_1(1:nit)  = 0;
-pot_motor_2(1:nit) = 0;
+pot_motor_1 = zeros(1,nit);
+pot_motor_2 = zeros(1,nit);
 u = strings(1,nit); u(1:nit) = "0,0";
 
 % Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
-    daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
+    daqduino_start('COM6'); % Starts DaqDuino board connected to COM6
 end
 
 %% Sintonia ZN
 
-% Coefiientes do Modelo Smith motor 1
-Kpsmith1 = 7.737;
-thetasmith1 =0.65;
-tausmith1 =0.6;
+% Coefientes do Modelo Smith motor 1
+Kpsmith1    = 7.737;
+thetasmith1 = 0.65;
+tausmith1   = 0.6;
 
-tau_zn1   = tausmith1;
-theta_zn1 = thetasmith1;
-Kp_zn1 = Kpsmith1;
 
 % Coefiientes do Modelo Smith motor 2
-Kpsmith2 = 12.86;
-thetasmith2 =0.5;
-tausmith2 =0.66;
-
-tau_zn2   = tausmith2;
-theta_zn2 = thetasmith2;
-Kp_zn2 = Kpsmith2;
+Kpsmith2    = 12.86;
+thetasmith2 = 0.5;
+tausmith2   = 0.66;
 
 
-% Sintonia do PID Tabela ZN para o motor 1
-Kp1 = 1.2*tau_zn1/(Kp_zn1*theta_zn1);
-Ti1 = 2*theta_zn1;
-Td1 = theta_zn1/2;
+% Sintonia do PID Tabela COHEN-COON para o motor 1
+Kp1 = (tausmith1/(Kpsmith1*thetasmith1))*(4/3 + thetasmith1/(4*tausmith1));
+Ti1 = thetasmith1*((32 + 6*thetasmith1/tausmith1)/(13 + 8*thetasmith1/tausmith1));
+Td1 = 4*thetasmith1/(11 + 2*thetasmith1/tausmith1);
 
 % Cálculo Ki1 e Kd1
 Ki1 = ts*Kp1/Ti1;
 Kd1 = (Kp1*Td1)/ts;
 
-% Sintonia do PID da Tabela ZN para o motor 2
-Kp2 = 1.2*tau_zn2/(Kp_zn2*theta_zn2);
-Ti2 = 2*theta_zn2;
-Td2 = theta_zn2/2;
+% Sintonia do PID da Tabela COHEN-COON para o motor 2
+Kp2 = (tausmith2/(Kpsmith2*thetasmith2))*(4/3 + thetasmith2/(4*tausmith2));
+Ti2 = thetasmith2*((32 + 6*thetasmith2/tausmith2)/(13 + 8*thetasmith1/tausmith2));
+Td2 = 4*thetasmith2/(11 + 2*thetasmith2/tausmith2);
 
 
 % Cálculo Ki2 e Kd2
 Ki2 = ts*Kp2/Ti2;
 Kd2 = Kp2*Td2/ts;
 
-% Sintonia PI
-
-
-% Kp1 = 0.9*tau_zn1/(Kp_zn1*theta_zn1);
-% Ti1 = 3*theta_zn1;
-% Td1 = theta_zn1/2;
-% 
-% Ki1 = ts*Kp1/Ti1;
-% Kd1 = Kp_zn1*Td1/ts;
-% 
-% Kp2 = 0.9*tau_zn2/(Kp_zn2*theta_zn2);
-% Ti2 = 3*theta_zn2;
-% Td2 = theta_zn2/2;
-% 
-% Ki2 = ts*Kp2/Ti2;
-% Kd2 = Kp_zn2*Td2/ts;
 
 %% Coeficientes estrutura PID Paralelo
 
@@ -101,21 +78,22 @@ for k = 3:nit
     pot_motor_1(k) = pot_motor_1(k-1) + q10*erro(k) + q11*erro(k-1) + q12*erro(k-2);
     pot_motor_2(k) = pot_motor_2(k-1) -(q20*erro(k) + q21*erro(k-1) + q22*erro(k-2));
 
-
+    % Saturação motor 1
     if pot_motor_1(k)> 15
         pot_motor_1(k) = 15;
     elseif pot_motor_1(k)< 7
         pot_motor_1(k) = 7;
-
     end
+
+    % Saturação motor 2
 
     if pot_motor_2(k)> 15
         pot_motor_2(k) = 15;
     elseif pot_motor_2(k)< 7
         pot_motor_2(k) = 7;
-
     end
 
+    % Desligar motores
     u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
     daqduino_write(u(k),ts);
 
@@ -142,7 +120,7 @@ daqduino_write(u0,ts);
 t = 0:ts:(nit-1)*ts;
 figure(1)
 plot(t(2:nit),angulo_sensor(2:nit),'r',t(2:nit),angulo_ref(2:nit),'--k'),grid
-title("Controle Proporcional-Integral")
+title("Controle PID sintonizado por Cohen-Coon")
 legend('Real')
 ylim([0,90])
 
