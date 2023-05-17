@@ -1,22 +1,22 @@
-%% Controle Proporcional Integral Sintonizado por Ziegler Nichols
+%% Controle Proporcional Integral Sintonizado por Cohen Coon
 clear all; close all; clc
 
-%% ----- CondiÃ§Ãµes iniciais
+%% ----- Condições iniciais
 nit = 800; ts = 0.01;
 angulo_sensor(1:nit) = 0; %u(1:nit) = '0,0\n';
 erro(1:nit) = 0;
 
-% %% ----- ReferÃªncia
+% %% ----- Referência
 angulo_ref(1:nit)  = 50;
 % angulo_ref(1:nit/2)  = 80;
 % angulo_ref(nit/2 +1 : nit)  = 20;
 
-% %% ----- VariÃ¡vel Controlada
+% %% ----- Variável Controlada
 pot_motor_1(1:nit)  = 0;
 pot_motor_2(1:nit) = 0;
 u = strings(1,nit); u(1:nit) = "0,0";
 
-% Iniciar o ProtÃ³tipo
+% Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
     daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
@@ -48,9 +48,9 @@ Kp1 = 1.2*tau_zn1/(Kp_zn1*theta_zn1);
 Ti1 = 2*theta_zn1;
 Td1 = theta_zn1/2;
 
-% CÃ¡lculo Ki1 e Kd1
+% Cálculo Ki1 e Kd1
 Ki1 = ts*Kp1/Ti1;
-Kd1 = (Kp_zn1*Td1)/ts;
+Kd1 = (Kp1*Td1)/ts;
 
 % Sintonia do PID da Tabela ZN para o motor 2
 Kp2 = 1.2*tau_zn2/(Kp_zn2*theta_zn2);
@@ -58,9 +58,9 @@ Ti2 = 2*theta_zn2;
 Td2 = theta_zn2/2;
 
 
-% CÃ¡lculo Ki2 e Kd2
+% Cálculo Ki2 e Kd2
 Ki2 = ts*Kp2/Ti2;
-Kd2 = 0*Kp_zn2*Td2/ts;
+Kd2 = Kp2*Td2/ts;
 
 % Sintonia PI
 
@@ -81,21 +81,21 @@ Kd2 = 0*Kp_zn2*Td2/ts;
 
 %% Coeficientes estrutura PID Paralelo
 
-% ParamÃªtro do PID motor 1
+% Paramêtro do PID motor 1
 q10 = Kp1 + Kd1;
 q11 = -Kp1 - 2*Kd1 +Ki1;
 q12 = Kd1;
 
-% ParamÃªtro do PID motor 2
+% Paramêtro do PID motor 2
 q20 = Kp2 + Kd2;
 q21 = -Kp2 - 2*Kd2 + Ki2;
 q22 = Kd2;
 
 
 
-%% ----- Processamento - EstimaÃ§Ã£o
+%% ----- Processamento - PID
 for k = 3:nit
-    % ----- SaÃ­da da planta
+    % ----- Saída da planta
     angulo_sensor(k) = daqduino_read;
     erro(k) = angulo_ref(k) - angulo_sensor(k);
     pot_motor_1(k) = pot_motor_1(k-1) + q10*erro(k) + q11*erro(k-1) + q12*erro(k-2);
@@ -151,13 +151,13 @@ subplot(211)
 plot(t,pot_motor_1)
 ylim([6,16])
 grid
-title("PotÃªncia do Motor 1")
+title("Potência do Motor 1")
 
 subplot(212)
 plot(t,pot_motor_2)
 ylim([6,16])
 grid
-title("PotÃªncia do Motor 2")
+title("Potência do Motor 2")
 
 
 %

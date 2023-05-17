@@ -93,7 +93,7 @@ q22 = Kd2;
 
 
 
-%% ----- Processamento - Estimação
+%% ----- Processamento - PID
 for k = 3:nit
     % ----- Saída da planta
     angulo_sensor(k) = daqduino_read;
