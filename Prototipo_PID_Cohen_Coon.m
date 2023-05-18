@@ -2,14 +2,14 @@
 clear all; close all; clc
 
 %% ----- Condições iniciais
-nit = 800; ts = 0.01;
+nit = 1200; ts = 0.01;
 angulo_sensor = zeros(1,nit); %u(1:nit) = '0,0\n';
 erro = zeros(1,nit);
 
 % %% ----- Referência
 angulo_ref = 50*ones(1,nit);
-% angulo_ref(1:nit/2)  = 80;
-% angulo_ref(nit/2 +1 : nit)  = 20;
+angulo_ref(1:nit/2)  = 80;
+angulo_ref(nit/2 +1 : nit)  = 20;
 
 % %% ----- Variável Controlada
 pot_motor_1 = zeros(1,nit);
@@ -22,7 +22,7 @@ if start == "y"
     daqduino_start('COM6'); % Starts DaqDuino board connected to COM6
 end
 
-%% Sintonia ZN
+%% Sintonia Cohen Coon
 
 % Coefientes do Modelo Smith motor 1
 Kpsmith1    = 7.737;
@@ -42,8 +42,9 @@ Ti1 = thetasmith1*((32 + 6*thetasmith1/tausmith1)/(13 + 8*thetasmith1/tausmith1)
 Td1 = 4*thetasmith1/(11 + 2*thetasmith1/tausmith1);
 
 % Cálculo Ki1 e Kd1
+ajuste = 0.01;
 Ki1 = ts*Kp1/Ti1;
-Kd1 = (Kp1*Td1)/ts;
+Kd1 = ajuste*(Kp1*Td1)/ts;
 
 % Sintonia do PID da Tabela COHEN-COON para o motor 2
 Kp2 = (tausmith2/(Kpsmith2*thetasmith2))*(4/3 + thetasmith2/(4*tausmith2));
@@ -53,7 +54,7 @@ Td2 = 4*thetasmith2/(11 + 2*thetasmith2/tausmith2);
 
 % Cálculo Ki2 e Kd2
 Ki2 = ts*Kp2/Ti2;
-Kd2 = Kp2*Td2/ts;
+Kd2 = ajuste*Kp2*Td2/ts;
 
 
 %% Coeficientes estrutura PID Paralelo
@@ -119,24 +120,54 @@ daqduino_write(u0,ts);
 %% ----- Plotar sinais
 t = 0:ts:(nit-1)*ts;
 figure(1)
-plot(t(2:nit),angulo_sensor(2:nit),'r',t(2:nit),angulo_ref(2:nit),'--k'),grid
+plot(t,angulo_sensor,'r',t,angulo_ref,'--k'),grid
 title("Controle PID sintonizado por Cohen-Coon")
-legend('Real')
-ylim([0,90])
 
+ylim([0,90])
+% 
+% % Settling criteria
+% desired_range = [0.95*angulo_sensor(end), 1.05*angulo_sensor(end)];  % Desired steady-state range
+% tolerance = 0.01;             % Tolerance for settling range
+% 
+% % Find the indices where the response is within the desired range
+% settling_indices = find(angulo_sensor > desired_range(1) & angulo_sensor < desired_range(2));
+% 
+% % Calculate the settling time
+% settling_time = t(settling_indices(1)) - t(1);
+% 
+% % Rise time calculation
+% percentage = 0.9;  % Percentage of desired steady-state range
+% 
+% rise_9_index = findidx(angulo_sensor,0.9*angulo_sensor(end));
+% rise_1_index = findidx(angulo_sensor,0.1*angulo_sensor(end));
+% rise_time = t(rise_9_index) - t(rise_1_index);
+% 
+% % Plot the settling time point
+% hold on;
+% plot(t(settling_indices(1)), angulo_sensor(settling_indices(1)), 'b.','MarkerSize',20);
+% text(t(settling_indices(1)), angulo_sensor(settling_indices(1))+5, ['Settling Time = ', num2str(settling_time)], 'VerticalAlignment', 'bottom','HorizontalAlignment','center');
+% % Plot the rise time point
+% 
+% plot(t(rise_9_index), angulo_sensor(rise_9_index), 'k.','MarkerSize',20);
+% text(t(rise_9_index)+0.2, angulo_sensor(rise_9_index)+0.5, ['Rise Time = ', num2str(rise_time)], 'VerticalAlignment', 'top','HorizontalAlignment','left');
+% 
+% legend('Real','Referência')
+% 
+
+% Potência dos Motores
 figure(2)
+metodo = 'Cohen Coon';
 subplot(211)
 plot(t,pot_motor_1)
 ylim([6,16])
 grid
-title("Potência do Motor 1")
+title(['Potência do Motor 1 - ' metodo])
 
 subplot(212)
 plot(t,pot_motor_2)
 ylim([6,16])
 grid
-title("Potência do Motor 2")
-
+title(['Potência do Motor 2 - ' metodo])
 
 %
 %

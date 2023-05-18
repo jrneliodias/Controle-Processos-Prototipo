@@ -50,7 +50,7 @@ Td1 = theta_zn1/2;
 
 % Cálculo Ki1 e Kd1
 Ki1 = ts*Kp1/Ti1;
-Kd1 = (Kp1*Td1)/ts;
+Kd1 = 0.05*(Kp1*Td1)/ts;
 
 % Sintonia do PID da Tabela ZN para o motor 2
 Kp2 = 1.2*tau_zn2/(Kp_zn2*theta_zn2);
@@ -60,7 +60,7 @@ Td2 = theta_zn2/2;
 
 % Cálculo Ki2 e Kd2
 Ki2 = ts*Kp2/Ti2;
-Kd2 = Kp2*Td2/ts;
+Kd2 = 0.05*Kp2*Td2/ts;
 
 % Sintonia PI
 
