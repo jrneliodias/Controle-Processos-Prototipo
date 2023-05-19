@@ -37,24 +37,22 @@ thetasmith2 = 0.5;
 tausmith2   = 0.66;
 
 
-% Sintonia do PID Tabela COHEN-COON para o motor 1
-Kp1 = (tausmith1/(Kpsmith1*thetasmith1))*(4/3 + thetasmith1/(4*tausmith1));
-Ti1 = thetasmith1*((32 + 6*thetasmith1/tausmith1)/(13 + 8*thetasmith1/tausmith1));
-Td1 = 4*thetasmith1/(11 + 2*thetasmith1/tausmith1);
+% Sintonia do PID Tabela Astrom para o motor 1
+Kp1 = 0.94/(Kpsmith1*tausmith1);
+Ti1 = 2*tausmith1;
+Td1 = 0.5*tausmith1;
 
 % Cálculo Ki1 e Kd1
 ajuste = 0.01;
-ajuste_ki = 2;
+ajuste_ki = 3;
 
 Ki1 = ajuste_ki*ts*Kp1/Ti1;
-
 Kd1 = ajuste*(Kp1*Td1)/ts;
 
-% Sintonia do PID da Tabela COHEN-COON para o motor 2
-Kp2 = (tausmith2/(Kpsmith2*thetasmith2))*(4/3 + thetasmith2/(4*tausmith2));
-Ti2 = thetasmith2*((32 + 6*thetasmith2/tausmith2)/(13 + 8*thetasmith1/tausmith2));
-Td2 = 4*thetasmith2/(11 + 2*thetasmith2/tausmith2);
-
+% Sintonia do PID da Tabela Astrom para o motor 2
+Kp2 = 0.94/(Kpsmith2*tausmith2);
+Ti2 = 2*tausmith2;
+Td2 = 0.5*tausmith2;
 
 % Cálculo Ki2 e Kd2
 Ki2 = ajuste_ki*ts*Kp2/Ti2;
@@ -113,19 +111,22 @@ end
 
 
 
+
+
 % Limpar a Serial
 daqduino_read
 u0 = [num2str(0),',',num2str(0),'\n'];
 daqduino_write(u0,ts);
 
 
-
-
 %% ----- Plotar sinais
+metodo = 'Astrom e Hagglund';
+ajuste = ' com ajuste';
+
 t = 0:ts:(nit-1)*ts;
 figure(1)
-plot(t,angulo_sensor,'r',t,angulo_ref,'--k'),grid
-title("Controle PID sintonizado por Cohen-Coon")
+p = plot(t,angulo_sensor,'r',t,angulo_ref,'--k');grid
+title(["Controle PID sintonizado por " metodo ajuste])
 
 ylim([0,90])
 % 
@@ -140,38 +141,39 @@ ylim([0,90])
 % settling_time = t(settling_indices(1)) - t(1);
 % 
 % % Rise time calculation
-% percentage = 0.9;  % Percentage of desired steady-state range
 % 
 % rise_9_index = findidx(angulo_sensor,0.9*angulo_sensor(end));
 % rise_1_index = findidx(angulo_sensor,0.1*angulo_sensor(end));
-% rise_time = t(rise_9_index) - t(rise_1_index);
+% rise_time = t(rise_9_index(1)) - t(rise_1_index(1));
 % 
 % % Plot the settling time point
 % hold on;
+% 
+% 
 % plot(t(settling_indices(1)), angulo_sensor(settling_indices(1)), 'b.','MarkerSize',20);
-% text(t(settling_indices(1)), angulo_sensor(settling_indices(1))+5, ['Settling Time = ', num2str(settling_time)], 'VerticalAlignment', 'bottom','HorizontalAlignment','center');
+% text(t(settling_indices(1)), angulo_sensor(settling_indices(1))+5,rise_time, ['Settling Time = ', num2str(settling_time)],...
+%     'VerticalAlignment', 'bottom','HorizontalAlignment','center','Color','b');
 % % Plot the rise time point
 % 
 % plot(t(rise_9_index), angulo_sensor(rise_9_index), 'k.','MarkerSize',20);
 % text(t(rise_9_index)+0.2, angulo_sensor(rise_9_index)+0.5, ['Rise Time = ', num2str(rise_time)], 'VerticalAlignment', 'top','HorizontalAlignment','left');
 % 
 % legend('Real','Referência')
-% 
+
 
 % Potência dos Motores
 figure(2)
-metodo = 'Cohen Coon';
 subplot(211)
 plot(t,pot_motor_1)
 ylim([6,16])
 grid
-title(['Potência do Motor 1 - ' metodo])
+title(['Potência do Motor 1 - ' metodo ajuste])
 
 subplot(212)
 plot(t,pot_motor_2)
 ylim([6,16])
 grid
-title(['Potência do Motor 2 - ' metodo])
+title(['Potência do Motor 2 - ' metodo ajuste])
 
 %
 %
