@@ -1,4 +1,4 @@
-%% Controle PID via LGR
+%% Controle Proporcional Integral - Tentativa e Erro
 %clear all; close all; clc
 
 %% ----- Condições iniciais
@@ -18,27 +18,14 @@ pot_motor_1 = zeros(1,nit);
 pot_motor_2 = zeros(1,nit);
 u = strings(1,nit); u(1:nit) = "0,0";
 
-% Coeficientes da sintonia PID por LGR
-Kp1 = 0.4916;
-Ki1 = 0.7241*ts;
-Kd1 = 0.01*0.0699/ts;
-4
-Kp2 = 0.3213;
-Ki2 = 0.4943*ts;
-Kd2 = 0.01*0.0409/ts;
+%% Ganhos do controlador
+Kp1 = 1.1;
+Kp2 = 1.8;
 
+Ki1 = 0.01;
+Ki2 = 0.02;
 
-
-% Paramêtro do PID motor 1
-q10 = Kp1 + Kd1;
-q11 = -Kp1 - 2*Kd1 +Ki1;
-q12 = Kd1;
-
-% Paramêtro do PID motor 2
-q20 = Kp2 + Kd2;
-q21 = -Kp2 - 2*Kd2 + Ki2;
-q22 = Kd2;
-
+erro_soma = 0;
 
 
 start = input("Start Daqduino? ","s");
@@ -46,7 +33,7 @@ if start == "y"
     daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
 end
 
-%% ----- Processamento - Estimação
+%% ----- Processamento
 limpar = input("Limpar memória? ","s");
 if limpar == "y"
 
@@ -58,43 +45,41 @@ if limpar == "y"
     daqduino_read
     daqduino_write(u0,ts);
 end
-
-for k = 3:nit
+for k = 2:nit
     % ----- Saída da planta
-    angulo_sensor(k) = daqduino_read;
-    erro(k) = angulo_ref(k) - angulo_sensor(k);
+        angulo_sensor(k) = daqduino_read;
+        erro(k) = angulo_ref(k) - angulo_sensor(k);
+        erro_soma = erro_soma + erro(k)*ts;
+        pot_motor_1(k) = Kp1*erro(k) + Ki1*erro_soma;
+        pot_motor_2(k) = -(Kp2*erro(k) + Ki2*erro_soma);
 
-    pot_motor_1(k) = pot_motor_1(k-1) + q10*erro(k) + q11*erro(k-1) + q12*erro(k-2);
-    pot_motor_2(k) = pot_motor_2(k-1) -(q20*erro(k) + q21*erro(k-1) + q22*erro(k-2));
+        if pot_motor_1(k)> 15
+            pot_motor_1(k) = 15;
+        elseif pot_motor_1(k)< 7
+            pot_motor_1(k) = 7;
 
-    % Saturação
-    if pot_motor_1(k)> 15
-        pot_motor_1(k) = 15;
-    elseif pot_motor_1(k)< 7
-        pot_motor_1(k) = 7;
+        end
 
-    end
+        if pot_motor_2(k)> 15
+            pot_motor_2(k) = 15;
+        elseif pot_motor_2(k)< 7
+            pot_motor_2(k) = 7;
 
-    if pot_motor_2(k)> 15
-        pot_motor_2(k) = 15;
-    elseif pot_motor_2(k)< 7
-        pot_motor_2(k) = 7;
+        end
 
-    end
+        u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
+        daqduino_write(u(k),ts);
 
-    u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
-    daqduino_write(u(k),ts);
-
-    if(angulo_sensor(k)<=0 || angulo_sensor(k)>90)
-        angulo_sensor(k) = angulo_sensor(k-1);  % Tratar os dados errados
-    end
+        if(angulo_sensor(k)<=0 || angulo_sensor(k)>90)
+            angulo_sensor(k) = angulo_sensor(k-1);  % Tratar os dados errados
+        end
 
 
 
 end
 
-% Limpar a Serial
-daqduino_read
+
+% Desligar motor
 u0 = [num2str(0),',',num2str(0),'\n'];
 daqduino_write(u0,ts);
 
@@ -102,8 +87,8 @@ daqduino_write(u0,ts);
 
 
 %% ----- Plotar sinais
-metodo = 'PID LGR';
-ajuste = '';
+metodo = 'PI';
+ajuste = ' Tentativa e Erro';
 
 t = 0:ts:(nit-1)*ts;
 figure(1)
