@@ -1,5 +1,5 @@
 %% Controle Proporcional Integral
-clear all; close all; clc
+%clear all; close all; clc
 
 %% ----- Condições iniciais
 nit = 800; ts = 0.01;
