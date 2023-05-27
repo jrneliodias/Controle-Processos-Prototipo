@@ -51,7 +51,7 @@ for k=3:nit
         end
 
         % Motor 1
-        fi1 = [-angulo(k-1); u1(k-1);u1(k-2)];
+        fi1 = [-angulo(k-1); u1(k-1); u1(k-2)];
         erro1 = angulo(k)-teta1'*fi1;
         K1= P1*fi1/(1 + fi1'*P1*fi1);
         teta1 = teta1 + K1*erro1;
@@ -60,18 +60,17 @@ for k=3:nit
         a11 = teta1(1);
         b01 = teta1(2); b11 = teta1(3);
         
-
         yest1(k) = -a11*yest1(k-1) + b01*u1(k-1) + b11*u1(k-2);
             
         % Motor 2
-        fi2 = [-angulo(k-1); u2(k-1);u2(k-2)];
+        fi2 = [-angulo(k-1); u2(k-1); u2(k-2)];
         erro2 = angulo(k)-teta2'*fi2;
         K2= P2*fi2/(1 + fi2'*P2*fi2);
         teta2 = teta2 + K2*erro2;
         P2 = P2 - K2*fi2'*P2;
 
         a12  = teta2(1);
-        b02 = teta2(2); b11 = teta2(3);
+        b02 = teta2(2); b12 = teta2(3);
         
 
         yest2(k) = -a12*yest2(k-1) + b01*u2(k-1) + b12*u2(k-2);
