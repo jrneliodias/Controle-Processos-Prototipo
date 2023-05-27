@@ -1,15 +1,26 @@
-%% Controle RST
+%% Controle IMC Incremental
 %clear all; close all; clc
 
 %% ----- Condições iniciais
-nit = 500; ts = 0.01;
+nit = 1200; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
-erro = zeros(1,nit);
+angulo_model1 = zeros(1,nit); 
+angulo_model2 = zeros(1,nit); 
+erro1 = zeros(1,nit);
+erro2 = zeros(1,nit);
+d0barra1 = zeros(1,nit);
+d0barra2 = zeros(1,nit);
+
+d=1;
+
+% ----- Ajuste do taumf1 e taumf2
+ajuste1 = 0.6;
+ajuste2 = 0.6;
 
 % %% ----- Referência
-angulo_ref = 50*ones(1,nit);
-%angulo_ref(1:nit/2)  = 80;
-%angulo_ref(nit/2 +1 : nit)  = 20;
+%angulo_ref = 50*ones(1,nit);
+angulo_ref(1:nit/2)  = 80;
+angulo_ref(nit/2 +1 : nit)  = 20;
 % angulo_ref(nit/3 +1 : 2*nit/3)  = 50;
 % angulo_ref(2*nit/3 +1 : 3*nit/3)  = 50;
 
@@ -48,24 +59,13 @@ Gmz1 = c2d(Gm1,ts);
 Bm1 = Gmz1.num{1}, Am1= Gmz1.den{1};
 
 % Modelo
-b0m1 = Bm1(2), a1m1 = Am1(2);
+b0m1 = Bm1(2); a1m1 = Am1(2);
 
 
 % Calculo do tau de malha fechada
-tau_mf1 = 3*tausmith1;
+tau_mf1 = ajuste1*tausmith1;
 
-p11 = exp(-ts/tau_mf1);
-
-a1m1barra1 = conv(Am1,[1 -1]);
-
-Coefab1 = [[a1m1barra1';0] [0;a1m1barra1'] [b0m1;zeros(3,1)] [0; b0m1;zeros(2,1)]]
-coefP11 = [p11-a1m1barra1(2), -a1m1barra1(3), 0, 0]'
-
-coefRS1 = coefP11\Coefab1;
-coefRS_cell1 = num2cell(coefRS1);
-[r01,r11,s01,s11] = coefRS_cell1{:}
-
-t01 = s01 + s11;
+alpha1 = exp(-ts/tau_mf1);
 
 
 % Função de transferência motor 2
@@ -73,26 +73,15 @@ Gm2 = tf(Kpsmith2,[tausmith2 1],'InputDelay',thetasmith2)
 
 % Discretização do modelo
 Gmz2 = c2d(Gm2,ts);
-Bm2 = Gmz2.num{1}, Am2= Gmz2.den{1};
+Bm2 = Gmz2.num{1}; Am2= Gmz2.den{1};
 
 % Modelo
-b0m2 = Bm2(2), a1m2 = Am2(2);
+b0m2 = Bm2(2); a1m2 = Am2(2);
 
 % Calculo do tau de malha fechada
-tau_mf2 = 3*tausmith2;
+tau_mf2 = ajuste2*tausmith2;
 
-p12 = exp(-ts/tau_mf2);
-
-a1m1barra2 = conv(Am2,[1 -1]);
-
-Coefab2 = [[a1m1barra2';0] [0;a1m1barra2'] [b0m2;zeros(3,1)] [0; b0m2;zeros(2,1)]]
-coefP12 = [p12-a1m1barra2(2), -a1m1barra2(3), 0, 0]'
-
-coefRS2 = coefP12\Coefab2;
-coefRS_cell2 = num2cell(coefRS2);
-[r02,r12,s02,s12] = coefRS_cell2{:}
-
-t02 = s02 + s12;
+alpha2 = exp(-ts/tau_mf2);
 
 
 %% ----- Processamento
@@ -108,18 +97,26 @@ limpar = input("Limpar memória? ","s");
         daqduino_write(u0,ts);
     end
 
-for k = 3:nit
+for k = 2+d:nit
     
     % ----- Saída da planta
     angulo_sensor(k) = daqduino_read;
 
+    % ---- Saida do modelo
+    angulo_model1(k) = -a1m1*angulo_model1(k-1) + b0m1*pot_motor_1(k-d-1);
+    angulo_model2(k) = -a1m2*angulo_model2(k-1) - b0m2*pot_motor_2(k-d-1);
+    
+    % Determinar a incerteza
+    d0barra1(k) = angulo_sensor(k) - angulo_model1(k);
+    d0barra2(k) = -(angulo_sensor(k) - angulo_model2(k));
+    
+    % Determinar o Erro
+    erro1(k) = angulo_ref(k) - d0barra1(k);
+    erro2(k) = -(angulo_ref(k) + d0barra2(k));
+    
     % Sinal de controle
-    delta_pot_motor_1(k) = -r11*delta_pot_motor_1(k-1)/r01+ t01*angulo_ref(k)/r01 - s01*angulo_sensor(k)/r01 -(s11/r01)*angulo_sensor(k-1);
-    pot_motor_1(k) = pot_motor_1(k-1) + delta_pot_motor_1(k);
-
-    delta_pot_motor_2(k) = -r12*delta_pot_motor_1(k-1)/r02 + t02*angulo_ref(k)/r02 - s02*angulo_sensor(k)/r02 -(s12/r02)*angulo_sensor(k-1);
-    pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
-
+    pot_motor_1(k) = alpha1*pot_motor_1(k-1) + ((1-alpha1)/b0m1)*erro1(k-1)+ a1m1*((1-alpha1)/b0m1)*erro1(k-2);
+    pot_motor_2(k) = alpha2*pot_motor_2(k-1) +((1-alpha2)/b0m2)*erro2(k-1)+ a1m2*((1-alpha2)/b0m2)*erro2(k-2);
 
     if pot_motor_1(k)> 15
         pot_motor_1(k) = 15;
@@ -156,7 +153,7 @@ daqduino_write(u0,ts);
 
 
 %% ----- Plotar sinais
-metodo = 'Alocações de Polos RST';
+metodo = 'Alocações de Polos por IMC';
 ajuste = '';
 
 t = 0:ts:(nit-1)*ts;
