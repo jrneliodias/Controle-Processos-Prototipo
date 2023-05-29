@@ -35,7 +35,7 @@ u = strings(1,nit); u(1:nit) = "0,0";
 % Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
-    daqduino_start('COM9'); 
+    daqduino_start('COM6'); 
 end
 
 %% Condições da Identificação MQR
