@@ -17,7 +17,7 @@ d=1;
 ajuste1 = 0.6;
 ajuste2 = 0.6;
 
-% %% ----- Referência
+%% ----- Referência
 %angulo_ref = 50*ones(1,nit);
 angulo_ref(1:nit/2)  = 80;
 angulo_ref(nit/2 +1 : nit)  = 20;
@@ -115,8 +115,9 @@ for k = 2+d:nit
     
     % Sinal de controle
     pot_motor_1(k) = alpha1*pot_motor_1(k-1) + ((1-alpha1)/b0m1)*erro1(k-1)+ a1m1*((1-alpha1)/b0m1)*erro1(k-2);
-    pot_motor_2(k) = alpha2*pot_motor_2(k-1) +((1-alpha2)/b0m2)*erro2(k-1)+ a1m2*((1-alpha2)/b0m2)*erro2(k-2);
+    pot_motor_2(k) = alpha2*pot_motor_2(k-1) + ((1-alpha2)/b0m2)*erro2(k-1)+ a1m2*((1-alpha2)/b0m2)*erro2(k-2);
 
+    % Saturações do sinal de Controle
     if pot_motor_1(k)> 15
         pot_motor_1(k) = 15;
     elseif pot_motor_1(k)< 7
@@ -131,9 +132,11 @@ for k = 2+d:nit
 
     end
 
+    % Enviar sinal de controle para os motores
     u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
     daqduino_write(u(k),ts);
 
+    % Retirar dados do sensor errado
     if(angulo_sensor(k)<=0 || angulo_sensor(k)>90)
         angulo_sensor(k) = angulo_sensor(k-1);  % Tratar os dados errados
     end
