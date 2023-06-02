@@ -18,7 +18,7 @@ ajuste1 = 0.6;
 ajuste2 = 0.6;
 
 %% ----- Referência
-%angulo_ref = 50*ones(1,nit);
+angulo_ref = 50*ones(1,nit);
 angulo_ref(1:nit/2)  = 80;
 angulo_ref(nit/2 +1 : nit)  = 20;
 % angulo_ref(nit/3 +1 : 2*nit/3)  = 50;

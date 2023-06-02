@@ -2,7 +2,7 @@
 %clear all; close all; clc
 
 %% ----- Condições iniciais
-nit = 500; ts = 0.01;
+nit = 1500; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
 angulo_model1 = zeros(1,nit); 
 angulo_model2 = zeros(1,nit); 
@@ -18,11 +18,11 @@ ajuste1 = 0.6;
 ajuste2 = 0.6;
 
 % %% ----- Referência
-angulo_ref = 50*ones(1,nit);
-% angulo_ref(1:nit/2)  = 80;
-% angulo_ref(nit/2 +1 : nit)  = 20;
-% angulo_ref(nit/3 +1 : 2*nit/3)  = 50;
-% angulo_ref(2*nit/3 +1 : 3*nit/3)  = 50;
+angulo_ref = 10*ones(1,nit);
+% angulo_ref(1:nit/2)  = 20;
+ angulo_ref(1 : nit/3)  = 80;
+ angulo_ref(nit/3 +1 : 2*nit/3)  = 60;
+ angulo_ref(2*nit/3 +1 : 3*nit/3)  = 50;
 
 % %% ----- Variável Controlada
 pot_motor_1 = zeros(1,nit);
@@ -54,13 +54,15 @@ erro_mqr1 = 0;
 erro2_mqr2 = 0;
 
 % Matriz P
-P1= 10^3*eye(3);
-P2= 10^3*eye(3);
+P1= 10^5*eye(3);
+P2= 10^5*eye(3);
 
 % Vetores Theta
-teta1 = 0.05*ones(3,1);
-teta2 = 0.05*ones(3,1);
+%teta1 = 0*ones(3,1);
+%teta2 = 0*ones(3,1);
 
+teta1 =  [-0.9 0.1 0.1]';
+teta2 =  [-0.9 0.1 0.1]';
 
 
 
@@ -87,17 +89,19 @@ for k = 3+d:nit
 
     % Motor 1
     fi1 = [-angulo_sensor(k-1); pot_motor_1(k-1); pot_motor_1(k-2)];
-    erro_mqr1 = angulo_sensor(k)-teta1'*fi1;
+    erro_mqr1 = (angulo_sensor(k)-teta1'*fi1);
     K1= P1*fi1/(1 + fi1'*P1*fi1);
     teta1 = teta1 + K1*erro_mqr1;
     P1 = P1 - K1*fi1'*P1;
+    P1 = P1 + (trace(P1)/3)*eye(3);
 
     % ---- Coeficientes do modelo do motor 1
     a1m1 = teta1(1);
     b0m1 = teta1(2); b1m1 = teta1(3);
+    b0barra1 = b0m1+b1m1;
 
     % ---- Saida do modelo do motor 1
-    angulo_model1(k) = -a1m1*angulo_model1(k-1) + b0m1*pot_motor_1(k-d-1) + b1m1*pot_motor_1(k-d-2);
+    angulo_model1(k) = -a1m1*angulo_model1(k-1) + b0barra1*pot_motor_1(k-d-1);% + b1m1*pot_motor_1(k-d-2);
 
     % Motor 2
     fi2 = [-angulo_sensor(k-1); pot_motor_2(k-1); pot_motor_2(k-2)];
@@ -105,21 +109,24 @@ for k = 3+d:nit
     K2= P2*fi2/(1 + fi2'*P2*fi2);
     teta2 = teta2 + K2*erro_mqr2;
     P2 = P2 - K2*fi2'*P2;
+    P2 = P2 + (trace(P2)/3)*eye(3);
+
 
     % ---- Coeficientes do modelo do motor 2
     a1m2  = teta2(1);
     b0m2 = teta2(2); b1m2 = teta2(3);
+    b0barra2 = b0m2+b1m2;
 
     % ---- Saida do modelo do motor 2
-    angulo_model2(k) = -a1m2*angulo_model2(k-1) + b0m1*pot_motor_2(k-d-1) + b1m2*pot_motor_2(k-d-2);
+    angulo_model2(k) = -a1m2*angulo_model2(k-1) - b0barra2*pot_motor_2(k-d-1);% + b1m2*pot_motor_2(k-d-2));
 
 
     %% ---------- Projeto do controlador RST
     % Calculo do tau de malha fechada
-    alpha1 = 0.98%-a1m1;
+    alpha1 = 0.6;%-a1m1;
 
     % Calculo do tau de malha fechada
-    alpha2 = 0.97%-a1m2;
+    alpha2 = 0.65;%-a1m2;
 
     
     % Determinar a incerteza
@@ -131,14 +138,14 @@ for k = 3+d:nit
     erro2(k) = -(angulo_ref(k) + d0barra2(k));
     
     % Sinal de controle
-   % pot_motor_1(k) = alpha1*pot_motor_1(k-1) + ((1-alpha1)/b0m1)*erro1(k-1)+ a1m1*((1-alpha1)/b0m1)*erro1(k-2);
-   % pot_motor_2(k) = alpha2*pot_motor_2(k-1) + ((1-alpha2)/b0m2)*erro2(k-1)+ a1m2*((1-alpha2)/b0m2)*erro2(k-2);
+    pot_motor_1(k) = alpha1*pot_motor_1(k-1) + ((1-alpha1)/b0barra1)*erro1(k-1)+ a1m1*((1-alpha1)/b0barra1)*erro1(k-2);
+    pot_motor_2(k) = alpha2*pot_motor_2(k-1) + ((1-alpha2)/b0barra2)*erro2(k-1)+ a1m2*((1-alpha2)/b0barra2)*erro2(k-2);
 
-     pot_motor_1(k) = ((alpha1*b0m1-b1m1)/b0m1)*pot_motor_1(k-1) + ((alpha1*b1m1)/b0m1)*pot_motor_1(k-2)...
-                    + ((1-alpha1)/b0m1)*erro1(k-1) + a1m1*((1-alpha1)/b0m1)*erro1(k-2);
-
-     pot_motor_2(k) = ((alpha2*b0m2-b1m2)/b0m2)*pot_motor_2(k-1) + ((alpha2*b1m2)/b0m2)*pot_motor_2(k-2)...
-                    + ((1-alpha2)/b0m2)*erro2(k-1) + a1m2*((1-alpha2)/b0m2)*erro2(k-2);
+%      pot_motor_1(k) = ((alpha1*b0m1-b1m1)/b0m1)*pot_motor_1(k-1) + ((alpha1*b1m1)/b0m1)*pot_motor_1(k-2)...
+%                     + ((1-alpha1)/b0m1)*erro1(k-1) + a1m1*((1-alpha1)/b0m1)*erro1(k-2);
+% 
+%      pot_motor_2(k) = ((alpha2*b0m2-b1m2)/b0m2)*pot_motor_2(k-1) + ((alpha2*b1m2)/b0m2)*pot_motor_2(k-2)...
+%                     + ((1-alpha2)/b0m2)*erro2(k-1) + a1m2*((1-alpha2)/b0m2)*erro2(k-2);
 
 
 

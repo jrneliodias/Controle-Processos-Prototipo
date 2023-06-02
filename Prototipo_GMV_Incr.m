@@ -4,7 +4,7 @@
 %clc; clear all; close all
 
 %% Condições Iniciais
-nit = 1200; ts = 0.01;
+nit = 500; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
 
 %% Referência e Pertubação
@@ -93,7 +93,7 @@ Pr = collect( pAz * delta * pEz + z^d * pSz - 1 ,z);
 coef_Pr = coeffs(Pr,z);
 
 % Resolver o sistema simbólico
-sol_Pr = solve(coef_Pr==0,[s0,s1,s2]);
+sol_Pr = solve(coef_Pr==0,[s0,s1]);
 
 
 % Determinar polinômio R(z^-1) = B(z^-1)E(z^-1) + Q(z^-1)
@@ -109,7 +109,7 @@ Rz =  coeffs( collect( pBz * pEz + pQz ,z),z);
 
 % Substituir os valores numéricos do modelo na estrutura. (ainda fica
 % simbolico)
-sol_Pr = subs(sol_Pr,[a1 a2],[a1m1 a2m1]);
+sol_Pr = subs(sol_Pr,[a1],[a1m1]);
 
 % Transformar a função double em cada propriedade da estrutura com a função
 % structfun. Retorna array.
@@ -154,7 +154,7 @@ Pr = collect( pAz * delta * pEz + z^d * pSz - 1 ,z);
 coef_Pr = coeffs(Pr,z);
 
 % Resolver o sistema simbólico
-sol_Pr = solve(coef_Pr==0,[s0,s1,s2]);
+sol_Pr = solve(coef_Pr==0,[s0,s1]);
 
 
 % Determinar polinômio R(z^-1) = B(z^-1)E(z^-1) + Q(z^-1)
@@ -170,7 +170,7 @@ Rz =  coeffs( collect( pBz * pEz + pQz ,z),z);
 
 % Substituir os valores numéricos do modelo na estrutura. (ainda fica
 % simbolico)
-sol_Pr = subs(sol_Pr,[a1 a2],[a1m2 a2m2]);
+sol_Pr = subs(sol_Pr,[a1],[a1m2]);
 
 % Transformar a função double em cada propriedade da estrutura com a função
 % structfun. Retorna array.
@@ -182,7 +182,7 @@ sol_Pr_double_cell2 = num2cell(sol_Pr_double);
 
 % Extrair cada valor em uma variável
 %[s0,s1,s2] = sol_Pr_double_cell{:};
-pS1 = sol_Pr_double';
+pS2 = sol_Pr_double';
 
 % Determinar polinômio R(z^-1)
 
@@ -210,21 +210,51 @@ if limpar == "y"
     daqduino_write(u0,ts);
 end
 
-for k = 6:nit
+for k = 3:nit
      
     % ----- Saída da planta
     angulo_sensor(k) = daqduino_read;
 
-    % Sinal de controle
-    delta_pot_motor_1(k) = (-Rcoef1(2:end)*delta_pot_motor_1(k-1) + t01*angulo_ref(k) - pS1*angulo_sensor(k:-1:k-2)')/Rcoef1(1);
-    delta_pot_motor_2(k) = (-Rcoef2(2:end)*delta_pot_motor_2(k-1) + t02*angulo_ref(k) - pS2*angulo_sensor(k:-1:k-2)')/Rcoef2(1);
+    % Sinal de controle GMV
+    delta_pot_motor_1(k) =  (t01*angulo_ref(k) - (pS1(1)*angulo_sensor(k-1) + pS1(2)*angulo_sensor(k-2)))/Rcoef1(1);
+    delta_pot_motor_2(k) = (t02*angulo_ref(k) - (pS2(1)*angulo_sensor(k-1) + pS2(2)*angulo_sensor(k-2)))/Rcoef2(1);
 
     pot_motor_1(k) = pot_motor_1(k-1) + delta_pot_motor_1(k);
     pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
 
-   
+      %% -------- Saturações de potência
+
+    if pot_motor_1(k)> 15
+        pot_motor_1(k) = 15;
+    elseif pot_motor_1(k)< 7
+        pot_motor_1(k) = 7;
+
+    end
+
+    % Saturações de potência
+    if pot_motor_2(k)> 15
+        pot_motor_2(k) = 15;
+    elseif pot_motor_2(k)< 7
+        pot_motor_2(k) = 7;
+
+    end
+
+    u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
+    daqduino_write(u(k),ts);
+
+    if(angulo_sensor(k)<=0 || angulo_sensor(k)>90)
+        angulo_sensor(k) = angulo_sensor(k-1);  % Tratar os dados errados
+    end
 
 end
+
+
+
+% Limpar a Serial
+daqduino_read
+u0 = [num2str(0),',',num2str(0),'\n'];
+daqduino_write(u0,ts);
+
 
 %% Resultados
 metodo = 'GMV';
