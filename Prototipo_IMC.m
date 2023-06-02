@@ -213,17 +213,3 @@ ylim([6,16])
 grid
 title(['Potência do Motor 2 - ' metodo ajuste])
 
-
-% Potência dos Motores
-figure(2)
-subplot(211)
-plot(t,pot_motor_1)
-ylim([6,16])
-grid
-title(['Potência do Motor 1 - ' metodo ajuste])
-
-subplot(212)
-plot(t,pot_motor_2)
-ylim([6,16])
-grid
-title(['Potência do Motor 2 - ' metodo ajuste])

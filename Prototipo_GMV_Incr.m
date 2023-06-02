@@ -6,14 +6,6 @@
 %% Condições Iniciais
 nit = 1200; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
-angulo_model1 = zeros(1,nit); 
-angulo_model2 = zeros(1,nit); 
-erro1 = zeros(1,nit);
-erro2 = zeros(1,nit);
-d1 = zeros(1,nit);
-
-d1(1:150) = 0; d1(350:nit) = 0.5; d0(1:nit) = rand(1,nit)*0.1;
-
 
 %% Referência e Pertubação
 angulo_ref = 50*ones(1,nit);
@@ -60,30 +52,39 @@ Bm1 = Gmz1.num{1}; Am1= Gmz1.den{1};
 % Coeficientes do Modelo
 b0m1 = Bm1(2); a1m1 = Am1(2);
 
+% Função de transferência motor 2
+Gm2 = tf(Kpsmith2,[tausmith2 1],'InputDelay',thetasmith2)
 
+% Discretização do modelo
+Gmz2 = c2d(Gm2,ts);
+Bm2 = Gmz2.num{1}; Am2= Gmz2.den{1};
+
+% Coeficientes do Modelo
+b0m2 = Bm2(2); a1m2 = Am2(2);
 
 %% Determinar E(z^-1) e S(z^-1)
-% na = 2;
-% nb = 2;
+% na = 1;
+% nb = 0;
 % ns = na;
 % ne = d-1;
 % E(z^-1) = e0
-% S(z^-1) = s0 + s1*z^-1 + s2*z^-2
+% S(z^-1) = s0 + s1*z^-1
 
 % Identidade Polinomial
 % P(z^-1) = A(z^-1)Delta E(z^-1) + z^-d S(z^-1)
 % P(z^-1) = 1
 
-%% Resolução por matemática simbólica
+%% Resolução por matemática simbólica motor 1
 
 % Declarar variáveis simbólicas
 syms a1 a2 s0 s1 s2 z
+
 % Definir os polinômios
-pAz = 1+ a1*z + a2*z^2;
+pAz = 1+ a1m1*z;
 delta = 1 - z;
 d = 1;
 pEz = 1  ;
-pSz = s0 + s1*z + s2*z^2;
+pSz = s0 + s1*z;
 
 % Igualdade Polinomial P(z^-1) = A(z^-1)Delta E(z^-1) + z^-d S(z^-1)
 Pr = collect( pAz * delta * pEz + z^d * pSz - 1 ,z);
@@ -97,18 +98,18 @@ sol_Pr = solve(coef_Pr==0,[s0,s1,s2]);
 
 % Determinar polinômio R(z^-1) = B(z^-1)E(z^-1) + Q(z^-1)
 % E(z^-1) = e0 + e1*z^-1 + e2*z^-2 + e3*z^-3
-% B(z^-1) = b0 + b1*z^-1 + b2*z^-2
+% B(z^-1) = b0 
 
 syms q0s b0 b1 b2 e1s e2s e3s
 pEz = 1;
-pBz = b0 + b1*z;
+pBz = b0m1;
 pQz = q0s;
 
 Rz =  coeffs( collect( pBz * pEz + pQz ,z),z);
 
 % Substituir os valores numéricos do modelo na estrutura. (ainda fica
 % simbolico)
-sol_Pr = subs(sol_Pr,[a1 a2],[a1m a2m]);
+sol_Pr = subs(sol_Pr,[a1 a2],[a1m1 a2m1]);
 
 % Transformar a função double em cada propriedade da estrutura com a função
 % structfun. Retorna array.
@@ -116,22 +117,83 @@ sol_Pr_double = structfun(@double,sol_Pr);
 
 % Transformar o array em cell para extrair cada elemento em variáveis
 % diferentes. Não obrigatório, apenas para deixar mais clean.
-sol_Pr_double_cell = num2cell(sol_Pr_double);
+sol_Pr_double_cell1 = num2cell(sol_Pr_double);
 
 % Extrair cada valor em uma variável
-%[s0,s1,s2] = sol_Pr_double_cell{:};
-pS = sol_Pr_double';
+%[s0,s1,s2] = sol_Pr_double_cell1{:};
+pS1 = sol_Pr_double';
 
 % Determinar polinômio R(z^-1)
 
 % T(z^-1) = t0 = P(1)
-t0 = 1;
+t01 = 1;
 
 % Q(z^-1) = q0
-q0 = 5;
+q01 = 5;
 
-Rz_subs = subs(Rz,[q0s b0 b1],[q0 b0m b1m]);
-Rcoef = double(Rz_subs)
+Rz_subs = subs(Rz,[q0s b0m1],[q01 b0m1]);
+Rcoef1 = double(Rz_subs)
+
+
+%% Resolução por matemática simbólica motor 2
+
+% Declarar variáveis simbólicas
+syms a1 a2 s0 s1 s2 z
+
+% Definir os polinômios
+pAz = 1+ a1m2*z;
+delta = 1 - z;
+d = 1;
+pEz = 1  ;
+pSz = s0 + s1*z;
+
+% Igualdade Polinomial P(z^-1) = A(z^-1)Delta E(z^-1) + z^-d S(z^-1)
+Pr = collect( pAz * delta * pEz + z^d * pSz - 1 ,z);
+
+% Extrair os coeficientes do polinômio simbolico
+coef_Pr = coeffs(Pr,z);
+
+% Resolver o sistema simbólico
+sol_Pr = solve(coef_Pr==0,[s0,s1,s2]);
+
+
+% Determinar polinômio R(z^-1) = B(z^-1)E(z^-1) + Q(z^-1)
+% E(z^-1) = e0 + e1*z^-1 + e2*z^-2 + e3*z^-3
+% B(z^-1) = b0 
+
+syms q0s b0 b1 b2 e1s e2s e3s
+pEz = 1;
+pBz = b0m2;
+pQz = q0s;
+
+Rz =  coeffs( collect( pBz * pEz + pQz ,z),z);
+
+% Substituir os valores numéricos do modelo na estrutura. (ainda fica
+% simbolico)
+sol_Pr = subs(sol_Pr,[a1 a2],[a1m2 a2m2]);
+
+% Transformar a função double em cada propriedade da estrutura com a função
+% structfun. Retorna array.
+sol_Pr_double = structfun(@double,sol_Pr);
+
+% Transformar o array em cell para extrair cada elemento em variáveis
+% diferentes. Não obrigatório, apenas para deixar mais clean.
+sol_Pr_double_cell2 = num2cell(sol_Pr_double);
+
+% Extrair cada valor em uma variável
+%[s0,s1,s2] = sol_Pr_double_cell{:};
+pS1 = sol_Pr_double';
+
+% Determinar polinômio R(z^-1)
+
+% T(z^-1) = t0 = P(1)
+t02 = 1;
+
+% Q(z^-1) = q0
+q02 = 5;
+
+Rz_subs = subs(Rz,[q0s b0m2],[q02 b0m2]);
+Rcoef2 = double(Rz_subs)
 
 
 %% Processamento 
@@ -149,40 +211,77 @@ if limpar == "y"
 end
 
 for k = 6:nit
-    % Sinal de saída
-
-    yp(k) = -A(2:end)*yp(k-1:-1:k-2)' + B(2:end)*uInterno(k-1:-1:k-2)';
-    y(k) = yp(k)+ d0(k) + d1(k);
+     
+    % ----- Saída da planta
+    angulo_sensor(k) = daqduino_read;
 
     % Sinal de controle
-    deltaPot(k) = (-Rcoef(2:end)*deltaPot(k-1) + t0*angulo_ref(k) - pS*y(k:-1:k-2)')/Rcoef(1);
+    delta_pot_motor_1(k) = (-Rcoef1(2:end)*delta_pot_motor_1(k-1) + t01*angulo_ref(k) - pS1*angulo_sensor(k:-1:k-2)')/Rcoef1(1);
+    delta_pot_motor_2(k) = (-Rcoef2(2:end)*delta_pot_motor_2(k-1) + t02*angulo_ref(k) - pS2*angulo_sensor(k:-1:k-2)')/Rcoef2(1);
 
-    uExterno(k) = uExterno(k-1) + deltaPot(k);
+    pot_motor_1(k) = pot_motor_1(k-1) + delta_pot_motor_1(k);
+    pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
 
-    % Erro na malha interna
-    erroInterno(k) = uExterno(k) - y(k);
-
-    % Sinal de controle interno
-    uInterno(k) = -a1comp*uInterno(k-1) + (b0comp)*erroInterno(k) + b1comp*erroInterno(k-1) ;
-
+   
 
 end
 
 %% Resultados
-t = (0:nit-1)*Ts;
+metodo = 'GMV';
+ajuste = '';
 
-subplot(311)
-h = plot(t,angulo_ref,'--k',t,y,'r','LineWidth',1); grid on
-h(1).LineWidth = 1;
-title('Resposta do Pêndulo Invertido')
-h1 = subplot(312),plot(t,uInterno,'m'),grid on
-title('Sinal de controle Interno (Compensador)')
+t = 0:ts:(nit-1)*ts;
+figure(1)
+p = plot(t,angulo_sensor,'r',t,angulo_ref,'--k');grid
+title(["Controle " metodo ajuste])
+
+ylim([0,90])
+
+indices = input("Calcular indices? ","s");
+if indices == "y"
+    % Settling criteria
+    desired_range = [0.95*angulo_sensor(end), 1.05*angulo_sensor(end)];  % Desired steady-state range
+    tolerance = 0.01;             % Tolerance for settling range
+
+    % Find the indices where the response is within the desired range
+    settling_indices = find(angulo_sensor > desired_range(1) & angulo_sensor < desired_range(2));
+
+    % Calculate the settling time
+    settling_time = t(settling_indices(1)) - t(1);
+
+    % Rise time calculation
+
+    rise_9_index = find(angulo_sensor>=0.9*angulo_sensor(end));
+    rise_1_index = find(angulo_sensor >=0.1*angulo_sensor(end));
+    rise_time = t(rise_9_index(1)) - t(rise_1_index(1));
+
+    % Plot the settling time point
+    hold on;
 
 
-h2 = subplot(313), plot(t,uExterno,'b'); grid on
-h2.YLim = h1.YLim;
-title('Sinal de controle Externo (GMV - Incremental)')
+    plot(t(settling_indices(1)), angulo_sensor(settling_indices(1)), 'b.','MarkerSize',20);
+    text(t(settling_indices(1)), angulo_sensor(settling_indices(1))+5,rise_time, ['Settling Time = ', num2str(settling_time)],...
+        'VerticalAlignment', 'bottom','HorizontalAlignment','center','Color','b');
+    % Plot the rise time point
 
+    plot(t(rise_9_index(1)), angulo_sensor(rise_9_index(1)), 'k.','MarkerSize',20);
+    text(t(rise_9_index(1))+0.2, angulo_sensor(rise_9_index(1))+0.5, ['Rise Time = ', num2str(rise_time)], 'VerticalAlignment', 'top','HorizontalAlignment','left');
 
+    legend('Real','Referência')
 
+end
+
+% Potência dos Motores
+figure(2)
+subplot(211)
+plot(t,pot_motor_1)
+ylim([6,16])
+grid
+title(['Potência do Motor 1 - ' metodo ajuste])
+
+subplot(212)
+plot(t,pot_motor_2)
+ylim([6,16])
+grid
+title(['Potência do Motor 2 - ' metodo ajuste])
 
