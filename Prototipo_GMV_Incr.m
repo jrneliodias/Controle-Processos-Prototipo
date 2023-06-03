@@ -4,7 +4,7 @@
 %clc; clear all; close all
 
 %% Condições Iniciais
-nit = 500; ts = 0.01;
+nit = 300; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
 
 %% Referência e Pertubação
@@ -27,7 +27,7 @@ u = strings(1,nit); u(1:nit) = "0,0";
 % Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
-    daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
+    daqduino_start('COM9'); % Starts DaqDuino board connected to COM7
 end
 
 %% Planta e Modelo
@@ -74,126 +74,79 @@ b0m2 = Bm2(2); a1m2 = Am2(2);
 % P(z^-1) = A(z^-1)Delta E(z^-1) + z^-d S(z^-1)
 % P(z^-1) = 1
 
-%% Resolução por matemática simbólica motor 1
-
-% Declarar variáveis simbólicas
-syms a1 a2 s0 s1 s2 z
-
-% Definir os polinômios
-pAz = 1+ a1m1*z;
-delta = 1 - z;
+%% Projeto do GMV motor 1
 d = 1;
-pEz = 1  ;
-pSz = s0 + s1*z;
+na1 = 1;
+nb1 = 0;
+ns1 = na1;
+ne1 = d-1;
 
-% Igualdade Polinomial P(z^-1) = A(z^-1)Delta E(z^-1) + z^-d S(z^-1)
-Pr = collect( pAz * delta * pEz + z^d * pSz - 1 ,z);
+% Definir o polinômio P1(z)
+P1 = zeros(ne1 + ns1 + 2,1);
+P1(1) = 1;
+P1(2) = 10;
+% Encontrar o polinômio E1(z) e S1(z)
+Am1_barra1 = conv(Am1,[1 -1]);
 
-% Extrair os coeficientes do polinômio simbolico
-coef_Pr = coeffs(Pr,z);
+mat_Scoef1 = [zeros(ne1+1,ns1+1);eye(ns1+1)];
 
-% Resolver o sistema simbólico
-sol_Pr = solve(coef_Pr==0,[s0,s1]);
+mat_SEcoef1 = [Am1_barra1' mat_Scoef1];
 
+EScoef1_array = mat_SEcoef1\P1;
 
-% Determinar polinômio R(z^-1) = B(z^-1)E(z^-1) + Q(z^-1)
-% E(z^-1) = e0 + e1*z^-1 + e2*z^-2 + e3*z^-3
-% B(z^-1) = b0 
+epoly1 = EScoef1_array(1:ne1+1)';
+spoly1 = EScoef1_array(ne1+2:end)';
 
-syms q0s b0 b1 b2 e1s e2s e3s
-pEz = 1;
-pBz = b0m1;
-pQz = q0s;
+% Encontrar o polinômio R por meio do Q1(z) e B1(z)
 
-Rz =  coeffs( collect( pBz * pEz + pQz ,z),z);
+q01 = 0.01;
+%q0_barra1 = q01*[1 -1];
 
-% Substituir os valores numéricos do modelo na estrutura. (ainda fica
-% simbolico)
-sol_Pr = subs(sol_Pr,[a1],[a1m1]);
+% Calculo do polinômio R1(z)
+%rpoly1 = [Bm1(2)+ epoly1 0] +q0_barra1;
+rpoly1 = Bm1(2)+ epoly1+q01;
 
-% Transformar a função double em cada propriedade da estrutura com a função
-% structfun. Retorna array.
-sol_Pr_double = structfun(@double,sol_Pr);
-
-% Transformar o array em cell para extrair cada elemento em variáveis
-% diferentes. Não obrigatório, apenas para deixar mais clean.
-sol_Pr_double_cell1 = num2cell(sol_Pr_double);
-
-% Extrair cada valor em uma variável
-%[s0,s1,s2] = sol_Pr_double_cell1{:};
-pS1 = sol_Pr_double';
-
-% Determinar polinômio R(z^-1)
-
-% T(z^-1) = t0 = P(1)
-t01 = 1;
-
-% Q(z^-1) = q0
-q01 = 5;
-
-Rz_subs = subs(Rz,[q0s b0m1],[q01 b0m1]);
-Rcoef1 = double(Rz_subs)
+% Calculo do polinômio T1(z)
+t01 = sum(P1);
 
 
-%% Resolução por matemática simbólica motor 2
+%% Projeto do GMV motor 2
 
-% Declarar variáveis simbólicas
-syms a1 a2 s0 s1 s2 z
-
-% Definir os polinômios
-pAz = 1+ a1m2*z;
-delta = 1 - z;
 d = 1;
-pEz = 1  ;
-pSz = s0 + s1*z;
+na2 = 1;
+nb2 = 0;
+ns2 = na2;
+ne2 = d-1;
 
-% Igualdade Polinomial P(z^-1) = A(z^-1)Delta E(z^-1) + z^-d S(z^-1)
-Pr = collect( pAz * delta * pEz + z^d * pSz - 1 ,z);
+% Definir o polinômio P2(z)
+P2 = zeros(ne2 + ns2 + 2,1);
+P2(1) = 1;
+P2(2) = 10;
 
-% Extrair os coeficientes do polinômio simbolico
-coef_Pr = coeffs(Pr,z);
+% Encontrar o polinômio E2(z) e S2(z)
+Am2_barra = conv(Am2,[1 -1]);
 
-% Resolver o sistema simbólico
-sol_Pr = solve(coef_Pr==0,[s0,s1]);
+mat_Scoef2 = [zeros(ne2+1,ns2+1);eye(ns2+1)];
 
+mat_SEcoef2 = [Am2_barra' mat_Scoef2];
 
-% Determinar polinômio R(z^-1) = B(z^-1)E(z^-1) + Q(z^-1)
-% E(z^-1) = e0 + e1*z^-1 + e2*z^-2 + e3*z^-3
-% B(z^-1) = b0 
+EScoef2_array = mat_SEcoef2\P2;
 
-syms q0s b0 b1 b2 e1s e2s e3s
-pEz = 1;
-pBz = b0m2;
-pQz = q0s;
+epoly2= EScoef2_array(1:ne2+1)';
+spoly2 = EScoef2_array(ne2+2:end)';
 
-Rz =  coeffs( collect( pBz * pEz + pQz ,z),z);
+% Encontrar o polinômio R por meio do Q1(z) e B1(z)
 
-% Substituir os valores numéricos do modelo na estrutura. (ainda fica
-% simbolico)
-sol_Pr = subs(sol_Pr,[a1],[a1m2]);
+q02 = 0.01;
+%q0_barra2 = q02*[1 -1];
 
-% Transformar a função double em cada propriedade da estrutura com a função
-% structfun. Retorna array.
-sol_Pr_double = structfun(@double,sol_Pr);
+% Calculo do polinômio R2(z)
+%rpoly2 = [Bm2(2)+ epoly2 0] +q0_barra2;
+rpoly2 = Bm2(2)+ epoly2+q02;
 
-% Transformar o array em cell para extrair cada elemento em variáveis
-% diferentes. Não obrigatório, apenas para deixar mais clean.
-sol_Pr_double_cell2 = num2cell(sol_Pr_double);
+% Calculo do polinômio T2(z)
+t02 = sum(P2);
 
-% Extrair cada valor em uma variável
-%[s0,s1,s2] = sol_Pr_double_cell{:};
-pS2 = sol_Pr_double';
-
-% Determinar polinômio R(z^-1)
-
-% T(z^-1) = t0 = P(1)
-t02 = 1;
-
-% Q(z^-1) = q0
-q02 = 5;
-
-Rz_subs = subs(Rz,[q0s b0m2],[q02 b0m2]);
-Rcoef2 = double(Rz_subs)
 
 
 %% Processamento 
@@ -216,13 +169,13 @@ for k = 3:nit
     angulo_sensor(k) = daqduino_read;
 
     % Sinal de controle GMV
-    delta_pot_motor_1(k) =  (t01*angulo_ref(k) - (pS1(1)*angulo_sensor(k-1) + pS1(2)*angulo_sensor(k-2)))/Rcoef1(1);
-    delta_pot_motor_2(k) = (t02*angulo_ref(k) - (pS2(1)*angulo_sensor(k-1) + pS2(2)*angulo_sensor(k-2)))/Rcoef2(1);
+    delta_pot_motor_1(k) =  (t01*angulo_ref(k) - spoly1*angulo_sensor(k:-1:k-ns1)')/rpoly1(1);
+    delta_pot_motor_2(k) =  (t02*angulo_ref(k) - spoly2*angulo_sensor(k:-1:k-ns2)')/rpoly2(1);
 
     pot_motor_1(k) = pot_motor_1(k-1) + delta_pot_motor_1(k);
     pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
 
-      %% -------- Saturações de potência
+    % -------- Saturações de potência
 
     if pot_motor_1(k)> 15
         pot_motor_1(k) = 15;
@@ -239,6 +192,7 @@ for k = 3:nit
 
     end
 
+    % Mandar sinal de controle para os Motores
     u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
     daqduino_write(u(k),ts);
 
