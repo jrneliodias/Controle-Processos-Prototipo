@@ -22,8 +22,12 @@ pot_motor_1 = zeros(1,nit);
 pot_motor_2 = zeros(1,nit);
 delta_pot_motor_1 = zeros(1,nit);
 delta_pot_motor_2 = zeros(1,nit);
+erro = zeros(1,nit);
 u = strings(1,nit); u(1:nit) = "0,0";
 
+% Maxima e minima potência
+max_pot = 15;
+min_pot = 7;
 
 % Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
@@ -82,47 +86,39 @@ nb1 = 0;
 ns1 = na1;
 ne1 = d-1;
 
-% Definir o polinômio P1(z)
-P1 = zeros(ne1 + ns1 + 2,1);
-P1(1) = 1;
-P1(2) = 1;
+a21 = 0;
 
-% Encontrar o polinômio E1(z) e S1(z)
-Am1_barra1 = conv(Am1,[1 -1]);
+% Determinar E e S
+e01 = 1;
+s01 = -(a1m1-1)*e01;
+s11 = -(a21-a1m1)*e01;
+s21 = a21*e01;
 
-mat_Scoef1 = [zeros(ne1+1,ns1+1);eye(ns1+1)];
+% Lei de Controle GMV
+% [B(z^-1)B(z^-1) + B(z^-1)]* DeltaU = B(z^-1)yr(k) - B(z^-1)y(k)
 
-mat_EAcoef1 = zeros(ne1 + ns1 + 2, ne1+1);
-am1_barra_len = length(Am1_barra1);
+% T(z^-1) = t0 = P(1)
+t01 = 1;
 
-for k = 1:ne1+1
-    mat_EAcoef1(k:k+am1_barra_len-1,k) = Am1_barra1';
-end
+% Q(z^-1) = q0/b0
+q01 = 0.1;
 
-mat_SEcoef1 = [mat_EAcoef1 mat_Scoef1];
+% q0 do PID
+que01 = 1/(b0m1+q01);
 
-EScoef1_array = mat_SEcoef1\P1;
+% Determinar polinômio R(z^-1)
+r0 = b0m1+q01;
+r1 = 0;
 
-epoly1 = EScoef1_array(1:ne1+1)';
-spoly1 = EScoef1_array(ne1+2:end)';
+% Sintonia do PID
 
-% Encontrar o polinômio R por meio do Q1(z) e B1(z)
+Kc1 = -que01*(s11+2*s21);
+Ti1 = -(s11+2*s21)*ts/(s11 + s01 + s21);
+Td1 = -s21*ts/(s11 + 2*s21);
 
-q01 = 0.01;
-q0_barra1 = q01*[1 -1];
-
-% Calculo do polinômio R1(z)
-%rpoly1 = [Bm1(2)+epoly1, 0] +q0_barra1;
-%rpoly1 = Bm1(2)+ epoly1+q01;
-
-BE_poly = conv(Bm1,epoly1);
-BE_poly_len = length(BE_poly);
-
-rpoly1 = BE_poly + [zeros(1,BE_poly_len-2) q0_barra1];
-nr1 = length(rpoly1)-1;
-
-% Calculo do polinômio T1(z)
-t01 = sum(P1);
+% q10 =  Kc1*(1 + ts/Ti1 + Td1/ts);
+% q11 = -Kc1*(1 + 2*Td1/ts);
+% q12 =  Kc1*Td1/ts;
 
 
 %% Projeto do GMV motor 2
@@ -132,51 +128,61 @@ na2 = 1;
 nb2 = 0;
 ns2 = na2;
 ne2 = d-1;
+a22 = 0;
 
-% Definir o polinômio P2(z)
-P2 = zeros(ne2 + ns2 + 2,1);
-P2(1) = 1;
-P2(2) = 1;
+% Determinar E e S
+e02 = 1;
+s02 = -(a1m2-1)*e02;
+s12 = -(a22-a1m2)*e02;
+s22 = a22*e02;
 
-% Encontrar o polinômio E2(z) e S2(z)
-Am2_barra = conv(Am2,[1 -1]);
+% Lei de Controle GMV
+% [B(z^-1)B(z^-1) + B(z^-1)]* DeltaU = B(z^-1)yr(k) - B(z^-1)y(k)
 
-mat_Scoef2 = [zeros(ne2+1,ns2+1);eye(ns2+1)];
+% T(z^-1) = t0 = P(1)
+t02 = 1;
 
+% Q(z^-1) = q0/b0
+q02 = 0.1;
 
-mat_EAcoef2 = zeros(ne2 + ns2 + 2, ne2+1);
-am2_barra_len = length(Am2_barra);
+% q0 do PID
+que02 = 1/(b0m2+q02);
 
-for k = 1:ne2+1
-    mat_EAcoef2(k:k+am2_barra_len-1,k) = Am2_barra';
-end
+% Determinar polinômio R(z^-1)
+r02 = b0m1+q02;
+r12 = 0;
 
-mat_SEcoef2 = [mat_EAcoef2 mat_Scoef2];
+% Sintonia do PID
 
+Kc2 = -que02*(s12+2*s22);
+Ti2 = -(s12+2*s22)*ts/(s12 + s02 + s22);
+Td2 = -s22*ts/(s12 + 2*s22);
 
-EScoef2_array = mat_SEcoef2\P2;
+ajuste_ki1 = 0.05;
+ajuste_kd1 = 0.1;
 
-epoly2=  EScoef2_array(1:ne2+1)';
-spoly2 = EScoef2_array(ne2+2:end)';
+ajuste_ki2 = 0.05;
+ajuste_kd2 = 0.1;
 
-% Encontrar o polinômio R por meio do Q1(z) e B1(z)
+Ki1 = ajuste_ki1*ts*Kc1/Ti1;
+Kd1 = ajuste_kd1*(Kc1*Td1)/ts;
 
-q02 = 0.01;
-q0_barra2 = q02*[1 -1];
+Ki2 = ajuste_ki2*ts*Kc2/Ti2;
+Kd2 = ajuste_kd2*(Kc2*Td2)/ts;
 
-% Calculo do polinômio R2(z)
-%rpoly2 = [Bm2(2)+epoly2, 0] +q0_barra2;
-%rpoly2 = Bm2(2)+ epoly2+ q02;
+% Coeficientes do PID estrutura paralela motor 1
+q10 = Kc1 + Kd1;
+q11 = -Kc1 - 2*Kd1 +Ki1;
+q12 = Kd1;
 
-BE_poly2 = conv(Bm2,epoly2);
-BE_poly_len2 = length(BE_poly2);
+% Coeficientes do PID estrutura paralela motor 2
+q20 = Kc2 + Kd2;
+q21 = -Kc2 - 2*Kd2 + Ki2;
+q22 = Kd2;
 
-rpoly2 = BE_poly2 + [zeros(1,BE_poly_len2-2) q0_barra2];
-nr2 = length(rpoly2)-1;
-
-
-% Calculo do polinômio T2(z)
-t02 = sum(P2);
+% q20 =  Kc2*(1 + ts/Ti2 + Td2/ts);
+% q21 = -Kc2*(1 + 2*Td2/ts);
+% q22 =  Kc2*Td2/ts;
 
 
 %% Processamento 
@@ -193,25 +199,32 @@ if limpar == "y"
     daqduino_write(u0,ts);
 end
 
-for k = 3+max(nr1,ns1):nit
+for k = 3:nit
      
     % ----- Saída da planta
     angulo_sensor(k) = daqduino_read;
 
-    % Sinal de controle GMV
-    delta_pot_motor_1(k) =  (-rpoly1(2:end)*delta_pot_motor_1(k-1:-1:k-nr1)'+ t01*angulo_ref(k) - spoly1*angulo_sensor(k:-1:k-ns1)')/rpoly1(1);
-    delta_pot_motor_2(k) =  (-rpoly2(2:end)*delta_pot_motor_2(k-1:-1:k-nr2)'+ t02*angulo_ref(k) - spoly2*angulo_sensor(k:-1:k-ns2)')/rpoly2(1);
+    erro(k) = angulo_ref(k) - angulo_sensor(k);
 
-    pot_motor_1(k) = pot_motor_1(k-1) + delta_pot_motor_1(k);
-    pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
+    pot_motor_1(k) = pot_motor_1(k-1) + q10*erro(k) + q11*erro(k-1) + q12*erro(k-2);
+    pot_motor_2(k) = pot_motor_2(k-1) -(q20*erro(k) + q21*erro(k-1) + q22*erro(k-2));
 
     % -------- Saturações de potência
-    max_pot = 15;
-    min_pot = 7;
 
-    pot_motor_1(k) = max(min_pot, min(pot_motor_1(k),max_pot));
-    pot_motor_2(k) = max(min_pot, min(pot_motor_2(k),max_pot));
-    
+    % Saturação
+    if pot_motor_1(k)> 15
+        pot_motor_1(k) = 15;
+    elseif pot_motor_1(k)< 7
+        pot_motor_1(k) = 7;
+
+    end
+
+    if pot_motor_2(k)> 15
+        pot_motor_2(k) = 15;
+    elseif pot_motor_2(k)< 7
+        pot_motor_2(k) = 7;
+
+    end
     
 
     % Mandar sinal de controle para os Motores

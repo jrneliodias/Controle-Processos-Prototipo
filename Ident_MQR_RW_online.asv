@@ -133,12 +133,7 @@ title("Identificação MQR do motor Separado")
 % 
 % u1(1:nit)  = 7;
 % u2(1:nit) = 10;
-disp(['a1 = ',num2str(a1 )]);
-disp(['a2 = ',num2str(a2 )]);
-disp(['b10 =',num2str(b10)]);
-disp(['b11 =',num2str(b11)]);
-disp(['b20 =',num2str(b20)]);
-disp(['b21 =',num2str(b21)]);
+
 
 % 
 % u1(1:nit)  = 10;

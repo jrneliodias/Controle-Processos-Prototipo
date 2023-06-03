@@ -32,36 +32,15 @@ if start == "y"
 end
 
 %% Planta e Modelo
+% Coeficientes da Identificação MQR com atualização da matriz P (Random Walk)
+a1  = -0.42673;
+a2  = -0.41589;
+b10 =  0.43853;
+b11 =  0.43853;
+b20 =  0.25997;
+b21 =  0.25997;
 
-%Coefiientes do Modelo Smith motor 1
-Kpsmith1 = 7.737;
-thetasmith1 =0.65;
-tausmith1 =0.6;
 
-% Coefiientes do Modelo Smith motor 2
-Kpsmith2 =  12.86;
-thetasmith2 = 0.5;
-tausmith2 =   0.66;
-
-% Função de transferência motor 1
-Gm1 = tf(Kpsmith1,[tausmith1 1],'InputDelay',thetasmith1)
-
-% Discretização do modelo
-Gmz1 = c2d(Gm1,ts);
-Bm1 = Gmz1.num{1}; Am1= Gmz1.den{1};
-
-% Coeficientes do Modelo
-b0m1 = Bm1(2); a1m1 = Am1(2);
-
-% Função de transferência motor 2
-Gm2 = tf(Kpsmith2,[tausmith2 1],'InputDelay',thetasmith2)
-
-% Discretização do modelo
-Gmz2 = c2d(Gm2,ts);
-Bm2 = Gmz2.num{1}; Am2= Gmz2.den{1};
-
-% Coeficientes do Modelo
-b0m2 = Bm2(2); a1m2 = Am2(2);
 
 %% Determinar E(z^-1) e S(z^-1)
 % na = 1;
@@ -75,109 +54,19 @@ b0m2 = Bm2(2); a1m2 = Am2(2);
 % P(z^-1) = A(z^-1)Delta E(z^-1) + z^-d S(z^-1)
 % P(z^-1) = 1
 
-%% Projeto do GMV motor 1
+%% Projeto do GMVC
 d = 1;
 na1 = 1;
 nb1 = 0;
 ns1 = na1;
 ne1 = d-1;
 
-% Definir o polinômio P1(z)
-P1 = zeros(ne1 + ns1 + 2,1);
-P1(1) = 1;
-P1(2) = 1;
+f0 = 1-a1;
+f1 = a1-a2;
+f2 = a2;
 
-% Encontrar o polinômio E1(z) e S1(z)
-Am1_barra1 = conv(Am1,[1 -1]);
-
-mat_Scoef1 = [zeros(ne1+1,ns1+1);eye(ns1+1)];
-
-mat_EAcoef1 = zeros(ne1 + ns1 + 2, ne1+1);
-am1_barra_len = length(Am1_barra1);
-
-for k = 1:ne1+1
-    mat_EAcoef1(k:k+am1_barra_len-1,k) = Am1_barra1';
-end
-
-mat_SEcoef1 = [mat_EAcoef1 mat_Scoef1];
-
-EScoef1_array = mat_SEcoef1\P1;
-
-epoly1 = EScoef1_array(1:ne1+1)';
-spoly1 = EScoef1_array(ne1+2:end)';
-
-% Encontrar o polinômio R por meio do Q1(z) e B1(z)
-
-q01 = 0.01;
-q0_barra1 = q01*[1 -1];
-
-% Calculo do polinômio R1(z)
-%rpoly1 = [Bm1(2)+epoly1, 0] +q0_barra1;
-%rpoly1 = Bm1(2)+ epoly1+q01;
-
-BE_poly = conv(Bm1,epoly1);
-BE_poly_len = length(BE_poly);
-
-rpoly1 = BE_poly + [zeros(1,BE_poly_len-2) q0_barra1];
-nr1 = length(rpoly1)-1;
-
-% Calculo do polinômio T1(z)
-t01 = sum(P1);
-
-
-%% Projeto do GMV motor 2
-
-
-na2 = 1;
-nb2 = 0;
-ns2 = na2;
-ne2 = d-1;
-
-% Definir o polinômio P2(z)
-P2 = zeros(ne2 + ns2 + 2,1);
-P2(1) = 1;
-P2(2) = 1;
-
-% Encontrar o polinômio E2(z) e S2(z)
-Am2_barra = conv(Am2,[1 -1]);
-
-mat_Scoef2 = [zeros(ne2+1,ns2+1);eye(ns2+1)];
-
-
-mat_EAcoef2 = zeros(ne2 + ns2 + 2, ne2+1);
-am2_barra_len = length(Am2_barra);
-
-for k = 1:ne2+1
-    mat_EAcoef2(k:k+am2_barra_len-1,k) = Am2_barra';
-end
-
-mat_SEcoef2 = [mat_EAcoef2 mat_Scoef2];
-
-
-EScoef2_array = mat_SEcoef2\P2;
-
-epoly2=  EScoef2_array(1:ne2+1)';
-spoly2 = EScoef2_array(ne2+2:end)';
-
-% Encontrar o polinômio R por meio do Q1(z) e B1(z)
-
-q02 = 0.01;
-q0_barra2 = q02*[1 -1];
-
-% Calculo do polinômio R2(z)
-%rpoly2 = [Bm2(2)+epoly2, 0] +q0_barra2;
-%rpoly2 = Bm2(2)+ epoly2+ q02;
-
-BE_poly2 = conv(Bm2,epoly2);
-BE_poly_len2 = length(BE_poly2);
-
-rpoly2 = BE_poly2 + [zeros(1,BE_poly_len2-2) q0_barra2];
-nr2 = length(rpoly2)-1;
-
-
-% Calculo do polinômio T2(z)
-t02 = sum(P2);
-
+q1 = 0.01;
+q2 = 0.01;
 
 %% Processamento 
 
@@ -193,14 +82,14 @@ if limpar == "y"
     daqduino_write(u0,ts);
 end
 
-for k = 3+max(nr1,ns1):nit
+for k = 3:nit
      
     % ----- Saída da planta
     angulo_sensor(k) = daqduino_read;
 
     % Sinal de controle GMV
-    delta_pot_motor_1(k) =  (-rpoly1(2:end)*delta_pot_motor_1(k-1:-1:k-nr1)'+ t01*angulo_ref(k) - spoly1*angulo_sensor(k:-1:k-ns1)')/rpoly1(1);
-    delta_pot_motor_2(k) =  (-rpoly2(2:end)*delta_pot_motor_2(k-1:-1:k-nr2)'+ t02*angulo_ref(k) - spoly2*angulo_sensor(k:-1:k-ns2)')/rpoly2(1);
+    delta_pot_motor_1(k) =  (-b11*delta_pot_motor_2(k-1) + angulo_ref(k) - [f0 f1 f2]*angulo_sensor(k:-1:k-2)')/(b10 + q1);
+    delta_pot_motor_2(k) =  (-b21*delta_pot_motor_2(k-1) + angulo_ref(k) - [f0 f1 f2]*angulo_sensor(k:-1:k-2)')/(b20 + q2);
 
     pot_motor_1(k) = pot_motor_1(k-1) + delta_pot_motor_1(k);
     pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
