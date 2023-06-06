@@ -4,15 +4,15 @@
 %clc; close all
 %clearvars -except arduino
 
-%% Condições Iniciais
+%% CondiÃ§Ãµes Iniciais
 nit = 500; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
 
-% Potências Máximas
+% PotÃªncias MÃ¡ximas
 max_pot = 10;
 min_pot = 7;
 
-%% Referência e Pertubação
+%% ReferÃªncia e PertubaÃ§Ã£o
 angulo_ref = 50*ones(1,nit);
 % mudref1 = 150;
 % mudref2 = 300;
@@ -21,7 +21,7 @@ angulo_ref = 50*ones(1,nit);
 % angulo_ref(mudref2+1:nit) = 50;
 
 
-%% ----- Variável Controlada
+%% ----- VariÃ¡vel Controlada
 pot_motor_1 = zeros(1,nit);
 pot_motor_2 = zeros(1,nit);
 delta_pot_motor_1 = zeros(1,nit);
@@ -29,7 +29,7 @@ delta_pot_motor_2 = zeros(1,nit);
 u = strings(1,nit); u(1:nit) = "0,0";
 
 
-% Iniciar o Protótipo
+% Iniciar o ProtÃ³tipo
 start = input("Start Daqduino? ","s");
 if start == "y"
     arduino = daqduino_start('COM9'); % Starts DaqDuino board connected to COM7
@@ -47,20 +47,20 @@ Kpsmith2 =  12.86;
 thetasmith2 = 0.5;
 tausmith2 =   0.66;
 
-% Função de transferência motor 1
+% FunÃ§Ã£o de transferÃªncia motor 1
 Gm1 = tf(Kpsmith1,[tausmith1 1],'InputDelay',thetasmith1);
 
-% Discretização do modelo
+% DiscretizaÃ§Ã£o do modelo
 Gmz1 = c2d(Gm1,ts);
 Bm1 = Gmz1.num{1}; Am1= Gmz1.den{1};
 
 % Coeficientes do Modelo
 b0m1 = Bm1(2); a1m1 = Am1(2);
 
-% Função de transferência motor 2
+% FunÃ§Ã£o de transferÃªncia motor 2
 Gm2 = tf(Kpsmith2,[tausmith2 1],'InputDelay',thetasmith2);
 
-% Discretização do modelo
+% DiscretizaÃ§Ã£o do modelo
 Gmz2 = c2d(Gm2,ts);
 Bm2 = Gmz2.num{1}; Am2= Gmz2.den{1};
 
@@ -86,12 +86,12 @@ nb1 = 0;
 ns1 = na1;
 ne1 = d-1;
 
-% Definir o polinômio P1(z)
+% Definir o polinÃ´mio P1(z)
 P1 = zeros(ne1 + ns1 + 2,1);
 P1(1) = 1;
 P1(2) = 0;
 
-% Encontrar o polinômio E1(z) e S1(z)
+% Encontrar o polinÃ´mio E1(z) e S1(z)
 Am1_barra1 = conv(Am1,[1 -1]);
 
 mat_Scoef1 = [zeros(ne1+1,ns1+1);eye(ns1+1)];
@@ -110,12 +110,12 @@ EScoef1_array = mat_SEcoef1\P1;
 epoly1 = EScoef1_array(1:ne1+1)';
 spoly1 = EScoef1_array(ne1+2:end)';
 
-% Encontrar o polinômio R por meio do Q1(z) e B1(z)
+% Encontrar o polinÃ´mio R por meio do Q1(z) e B1(z)
 
 q01 = 100;
 q0_barra1 = q01*[1 -1];
 
-% Calculo do polinômio R1(z)
+% Calculo do polinÃ´mio R1(z)
 %rpoly1 = [Bm1(2)+epoly1, 0] +q0_barra1;
 %rpoly1 = Bm1(2)+ epoly1+q01;
 
@@ -125,7 +125,7 @@ BE_poly_len = length(BE_poly);
 rpoly1 = BE_poly + [zeros(1,BE_poly_len-2) q0_barra1];
 nr1 = length(rpoly1)-1;
 
-% Calculo do polinômio T1(z)
+% Calculo do polinÃ´mio T1(z)
 t01 = sum(P1);
 
 
@@ -137,12 +137,12 @@ nb2 = 0;
 ns2 = na2;
 ne2 = d-1;
 
-% Definir o polinômio P2(z)
+% Definir o polinÃ´mio P2(z)
 P2 = zeros(ne2 + ns2 + 2,1);
 P2(1) = 1;
 P2(2) = 0;
 
-% Encontrar o polinômio E2(z) e S2(z)
+% Encontrar o polinÃ´mio E2(z) e S2(z)
 Am2_barra = conv(Am2,[1 -1]);
 
 mat_Scoef2 = [zeros(ne2+1,ns2+1);eye(ns2+1)];
@@ -163,12 +163,12 @@ EScoef2_array = mat_SEcoef2\P2;
 epoly2=  EScoef2_array(1:ne2+1)';
 spoly2 = EScoef2_array(ne2+2:end)';
 
-% Encontrar o polinômio R por meio do Q1(z) e B1(z)
+% Encontrar o polinÃ´mio R por meio do Q1(z) e B1(z)
 
 q02 = 10;
 q0_barra2 = q02*[1 -1];
 
-% Calculo do polinômio R2(z)
+% Calculo do polinÃ´mio R2(z)
 %rpoly2 = [Bm2(2)+epoly2, 0] +q0_barra2;
 %rpoly2 = Bm2(2)+ epoly2+ q02;
 
@@ -179,13 +179,13 @@ rpoly2 = BE_poly2 + [zeros(1,BE_poly_len2-2) q0_barra2];
 nr2 = length(rpoly2)-1;
 
 
-% Calculo do polinômio T2(z)
+% Calculo do polinÃ´mio T2(z)
 t02 = sum(P2);
 
 
 %% Processamento 
 
-limpar = input("Limpar memória? ","s");
+limpar = input("Limpar memÃ³ria? ","s");
 if limpar == "y"
 
     % Limpar Serial
@@ -199,7 +199,7 @@ end
 
 for k = 3+max(nr1,ns1):nit
      
-    % ----- Saída da planta
+    % ----- SaÃ­da da planta
     angulo_sensor(k) = daqduino_read(arduino);
 
     % Sinal de controle GMV
@@ -209,7 +209,7 @@ for k = 3+max(nr1,ns1):nit
     pot_motor_1(k) = pot_motor_1(k-1) + delta_pot_motor_1(k);
     pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
 
-    % -------- Saturações de potência
+    % -------- SaturaÃ§Ãµes de potÃªncia
    
 
     pot_motor_1(k) = max(min_pot, min(pot_motor_1(k),max_pot));
@@ -276,14 +276,14 @@ if indices == "y"
 
     plot(t(rise_9_index(1)), angulo_sensor(rise_9_index(1)), 'k.','MarkerSize',20);
     text(t(rise_9_index(1))+0.2, angulo_sensor(rise_9_index(1))+0.5, ['Rise Time = ', num2str(rise_time)], 'VerticalAlignment', 'top','HorizontalAlignment','left');
-    ylabel("Ângulo (º)")
+    ylabel("Ã‚ngulo (Âº)")
     xlabel("Tempo (s)")
 
-    legend('Real','Referência')
+    legend('Real','ReferÃªncia')
 
 end
 
-% Potência dos Motores
+% PotÃªncia dos Motores
 figure(2)
 set(gcf,'position',[900 100 800 800])
 subplot(211)
@@ -293,7 +293,7 @@ ylabel("PWM Bandwidth (%)")
 xlabel("Tempo (s)")
 ylim([6,16])
 grid
-title(['Potência do Motor 1 - ' metodo ajuste])
+title(['PotÃªncia do Motor 1 - ' metodo ajuste])
 
 subplot(212)
 plot(t,pot_motor_2)
@@ -302,5 +302,5 @@ yticks(6:16)
 ylabel("PWM Bandwidth (%)")
 xlabel("Tempo (s)")
 grid
-title(['Potência do Motor 2 - ' metodo ajuste])
+title(['PotÃªncia do Motor 2 - ' metodo ajuste])
 
