@@ -15,6 +15,7 @@ classdef GeneralizedPredictiveController
         Kgpc
         du
         u
+        F
     end
     
     methods
@@ -26,14 +27,15 @@ classdef GeneralizedPredictiveController
             obj.ts = ts;
             obj.Am = Am;
             obj.Bm = Bm;
-                      
+            na = length(Am);
             obj.u = zeros(1,nit);
             obj.du = zeros(1,nit);
             obj.E = zeros(1, Ny);
             obj.G = zeros(Ny, Nu);
             obj.H = zeros(Ny,1);
-            obj.gt = zeros(Nu, Ny);
-            obj.Kgpc = zeros(1, Nu);
+            obj.gt = zeros(Ny, Ny);
+            obj.Kgpc = zeros(1, Ny);
+            obj.F = zeros(Ny, na);
         end
         
         function obj = calculateController(obj)
@@ -42,7 +44,7 @@ classdef GeneralizedPredictiveController
             delta = [1, -1];
             Atil = conv(obj.Am, delta);
             natil = length(Atil);
-            F = zeros(ny, natil - 1);
+            obj.F = zeros(ny, natil - 1);
             nb = length(obj.Bm)-1;
             G_aux = zeros(ny,nu);
             
@@ -54,7 +56,8 @@ classdef GeneralizedPredictiveController
 
             for k = 1:ny
                 [q(k), rr] = deconv(rr, Atil);
-                F(k, :) = rr(2:end);
+                obj.F(k, :) = rr(2:end);
+                disp(obj.F)
             end
 
             for j = 1:ny

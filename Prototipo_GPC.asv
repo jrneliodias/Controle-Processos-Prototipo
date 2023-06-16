@@ -4,18 +4,18 @@
 
 clear; clc; 
 
-%% ----- Condições inciais
+%% ----- CondiÃ§Ãµes inciais
 nit = 500; ts = 0.01;
 
 Ny1 = 10; Nu1 = 1; lambda1 = 1;
 Ny2 = 10; Nu2 = 1; lambda2 = 1;
-angulo_sensor = zeros(1,nit);
+angulo_sensor = zeros(1,nit+Ny1);
 
-% -------- Saturações de potência
+% -------- SaturaÃ§Ãµes de potÃªncia
 max_pot = 15;
 min_pot = 7;
     
-%% ----- Discretização do Modelo
+%% ----- DiscretizaÃ§Ã£o do Modelo
 %Coefiientes do Modelo Smith motor 1
 Kpsmith1 = 7.737;
 thetasmith1 =0.65;
@@ -26,10 +26,10 @@ Kpsmith2 =  12.86;
 thetasmith2 = 0.5;
 tausmith2 =   0.66;
 
-% Função de transferência motor 1
+% FunÃ§Ã£o de transferÃªncia motor 1
 Gm1 = tf(Kpsmith1,[tausmith1 1],'InputDelay',thetasmith1);
 
-% Discretização do modelo
+% DiscretizaÃ§Ã£o do modelo
 Gmz1 = c2d(Gm1,ts);
 Bm1 = Gmz1.num{1}; Am1= Gmz1.den{1};
 nbm1 = length(Bm1)-1; nam1 = length(Am1)-1;
@@ -37,10 +37,10 @@ nbm1 = length(Bm1)-1; nam1 = length(Am1)-1;
 % Coeficientes do Modelo
 b0m1 = Bm1(2); a1m1 = Am1(2);
 
-% Função de transferência motor 2
+% FunÃ§Ã£o de transferÃªncia motor 2
 Gm2 = tf(Kpsmith2,[tausmith2 1],'InputDelay',thetasmith2);
 
-% Discretização do modelo
+% DiscretizaÃ§Ã£o do modelo
 Gmz2 = c2d(Gm2,ts);
 Bm2 = Gmz2.num{1}; Am2= Gmz2.den{1};
 nbm2 = length(Bm2)-1; nam2 = length(Am2)-1;
@@ -49,11 +49,11 @@ nbm2 = length(Bm2)-1; nam2 = length(Am2)-1;
 b0m2 = Bm2(2); a1m2 = Am2(2);
 
 
-%% ----- Referência ----- Degrau
+%% ----- ReferÃªncia ----- Degrau
 angulo_ref = ones(1,nit+Ny1);
 angulo_ref(1:100) = 50; angulo_ref(101:200) = 50; angulo_ref(201:nit+Ny1) = 50;
 
-%% Inicialização do GPC para cada motor
+%% InicializaÃ§Ã£o do GPC para cada motor
 gpc_m1 = GeneralizedPredictiveController(nit,Ny1,Nu1,lambda1,ts,Am1,Bm1);
 gpc_m2 = GeneralizedPredictiveController(nit,Ny2,Nu2,lambda2,ts,Am2,Bm2);
 
@@ -61,13 +61,13 @@ gpc_m2 = GeneralizedPredictiveController(nit,Ny2,Nu2,lambda2,ts,Am2,Bm2);
 
 
 
-%% Iniciar o Protótipo
+% Iniciar o ProtÃ³tipo
 start = input("Start Daqduino? ","s");
 if start == "y"
     daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
 end
 
-limpar = input("Limpar memória? ","s");
+limpar = input("Limpar memÃ³ria? ","s");
 if limpar == "y"
 
     % Limpar Serial
@@ -83,17 +83,17 @@ end
 tbegin = 3; %+ max([1+nb,1+na]);
 ent_fut = 1;
 
-%% Calculando os sinais de controle a partir do preditor e saída
+%% Calculando os sinais de controle a partir do preditor e saÃ­da
 for k = tbegin:nit
 
-    % ----- Saída da planta
+    % ----- SaÃ­da da planta
     angulo_sensor(k) = daqduino_read;
 
     if (ent_fut==0)
-        % ---- Referência futura desconhecida
+        % ---- ReferÃªncia futura desconhecida
         aux_ref = angulo_ref(k)*ones(1,Ny1)';
     elseif(ent_fut==1)
-        % ---- Referência futura conhecida
+        % ---- ReferÃªncia futura conhecida
         aux_ref = angulo_ref(k:k+Ny1-1)';
     end
 
@@ -104,9 +104,9 @@ for k = tbegin:nit
     gpc_m2.du(k) = gpc_m2.Kgpc*(aux_ref - fim2);
 
     gpc_m1.u(k) = gpc_m1.u(k-1) + gpc_m1.du(k);
-    gpc_m2.u(k) = gpc_m2.u(k-1) - gpc_m2.du(k);
+    gpc_m2.u(k) = gpc_m2.u(k-1) + gpc_m2.du(k);
 
-    % -------- Saturações de potência
+    % -------- SaturaÃ§Ãµes de potÃªncia
    
     gpc_m1.u(k) = max(min_pot, min(gpc_m1.u(k),max_pot));
     gpc_m2.u(k) = max(min_pot, min(gpc_m2.u(k),max_pot));
@@ -136,7 +136,7 @@ ajuste = '';
 t = 0:ts:(nit-1)*ts;
 figure(1)
 set(gcf,'position',[100 100 600 500])
-p = plot(t,angulo_sensor,'r',t,angulo_ref(1:end-Ny1),'--k');grid
+p = plot(t,angulo_sensor,'r',t,angulo_ref,'--k');grid
 title(["Controle " metodo ajuste])
 
 ylim([0,90])
@@ -170,14 +170,14 @@ if indices == "y"
 
     plot(t(rise_9_index(1)), angulo_sensor(rise_9_index(1)), 'k.','MarkerSize',20);
     text(t(rise_9_index(1))+0.2, angulo_sensor(rise_9_index(1))+0.5, ['Rise Time = ', num2str(rise_time)], 'VerticalAlignment', 'top','HorizontalAlignment','left');
-    ylabel("Ângulo (º)")
+    ylabel("Ã‚ngulo (Âº)")
     xlabel("Tempo (s)")
 
-    legend('Real','Referência')
+    legend('Real','ReferÃªncia')
 
 end
 
-% Potência dos Motores
+% PotÃªncia dos Motores
 figure(2)
 set(gcf,'position',[800 100 500 600])
 subplot(211)
@@ -187,7 +187,7 @@ ylabel("PWM Bandwidth (%)")
 xlabel("Tempo (s)")
 ylim([6,16])
 grid
-title(['Potência do Motor 1 - ' metodo ajuste])
+title(['PotÃªncia do Motor 1 - ' metodo ajuste])
 
 subplot(212)
 plot(t,gpc_m1.u)
@@ -196,6 +196,6 @@ yticks(6:16)
 ylabel("PWM Bandwidth (%)")
 xlabel("Tempo (s)")
 grid
-title(['Potência do Motor 2 - ' metodo ajuste])
+title(['PotÃªncia do Motor 2 - ' metodo ajuste])
 
 
