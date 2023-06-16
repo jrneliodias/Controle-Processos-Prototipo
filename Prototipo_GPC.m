@@ -1,115 +1,199 @@
 %% ***********************************************************************
-%	Controlador Preditivo Generalizado 
+%	Controlador Preditivo Generalizado
 % ***********************************************************************
 
 clear all; clc; close all
 
 %% ----- Condições inciais
-nit = 300; Ny = 15; Nu = 3; lambda = 0; ts = 0.01; 
-y(1:nit) = zeros(1,nit); 
-yp(1:nit) = zeros(1,nit); 
-u(1:nit) = zeros(1,nit); 
-du(1:nit) = 0; 
-e(1:nit) = 0; 
-fi(1:nit) = 0;
-I = eye(Nu); G = zeros(Ny,Nu); g = zeros(1,Ny); 
-G_aux = zeros(Ny,Nu); Gt = zeros(Ny,Ny);
-    
-%% ----- Discretização da planta 
-A = [1 -3 2]; B = [0 0.5 -0.8];
-na = length(A) - 1; nb = length(B) - 1;
-a1 = A(2); a2 = A(3); b0 = B(2); b1 = B(3);
+nit = 500; ts = 0.01;
 
+Ny1 = 15; Nu1 = 3; lambda1 = 0;
+Ny2 = 15; Nu2 = 3; lambda2 = 0;
+angulo_sensor = zeros(1,nit);
+
+% -------- Saturações de potência
+max_pot = 15;
+min_pot = 7;
+    
 %% ----- Discretização do Modelo
-Bm = B; Am = A; nbm = length(Bm)-1; nam = length(Am)-1;
-delta = [1 -1];
-Atil = conv(Am,delta); natil = length(Atil);
+%Coefiientes do Modelo Smith motor 1
+Kpsmith1 = 7.737;
+thetasmith1 =0.65;
+tausmith1 =0.6;
+
+% Coefiientes do Modelo Smith motor 2
+Kpsmith2 =  12.86;
+thetasmith2 = 0.5;
+tausmith2 =   0.66;
+
+% Função de transferência motor 1
+Gm1 = tf(Kpsmith1,[tausmith1 1],'InputDelay',thetasmith1)
+
+% Discretização do modelo
+Gmz1 = c2d(Gm1,ts);
+Bm1 = Gmz1.num{1}; Am1= Gmz1.den{1};
+nbm1 = length(Bm1)-1; nam1 = length(Am1)-1;
+
+% Coeficientes do Modelo
+b0m1 = Bm1(2); a1m1 = Am1(2);
+
+% Função de transferência motor 2
+Gm2 = tf(Kpsmith2,[tausmith2 1],'InputDelay',thetasmith2)
+
+% Discretização do modelo
+Gmz2 = c2d(Gm2,ts);
+Bm2 = Gmz2.num{1}; Am2= Gmz2.den{1};
+nbm2 = length(Bm2)-1; nam2 = length(Am2)-1;
+
+% Coeficientes do Modelo
+b0m2 = Bm2(2); a1m2 = Am2(2);
+
 
 %% ----- Referência ----- Degrau
-ref(1:100) = 1; ref(101:200) = 2.5; ref(201:nit+Ny) = 4.5; 
+angulo_ref = ones(1,nit+Ny1);
+angulo_ref(1:100) = 50; angulo_ref(101:200) = 50; angulo_ref(201:nit+Ny1) = 50;
 
-%% ----- Perturbação
-d0(1:150) = 0; d0(151:nit) = 0;
+%% Inicialização do GPC para cada motor
+gpc_m1 = GeneralizedPredictiveController(nit,Ny1,Nu1,lambda1,ts,Am1,Bm1);
+gpc_m2 = GeneralizedPredictiveController(nit,Ny2,Nu2,lambda2,ts,Am2,Bm2);
 
-%% Cálculo dos matrizes do preditor (F, H, G)
-% primeira equação diophantine
-rr = [1 zeros(1,natil-1)];
-E = zeros(1,Ny); % polinômio E (gradu ne = j-1)
+tbegin = 1; %+ max([1+nb,1+na]);
+ent_fut = 1;
 
-for k = 1:Ny
-    [q(k),r] = deconv(rr,Atil);
-    F(k,:) = r(2:end);
-    rr = [r(2:end) 0];
+
+
+% Iniciar o Protótipo
+start = input("Start Daqduino? ","s");
+if start == "y"
+    daqduino_start('COM9'); % Starts DaqDuino board connected to COM7
 end
 
-for j = 1:Ny
-    if (j==1)
-        aux = [q(j) zeros(1,Ny-j)]; % elementos passados, u(t-1)...u(t-1-nb) :)
-    else
-        aux = [q(1:j) zeros(1,Ny-j)];
-    end
-    E(j,:) = aux;
+limpar = input("Limpar memória? ","s");
+if limpar == "y"
+
+    % Limpar Serial
+    daqduino_read;
+    u0 = [num2str(0),',',num2str(0),'\n'];
+    daqduino_write(u0,ts);
+
+    daqduino_read;
+    daqduino_write(u0,ts);
 end
 
-% segunda equação diophantine
-B_aux = conv(Bm,E(end,:)); nb_aux = length(B_aux);
-T_BE = [1 zeros(1,nb_aux-1)]; % polinômio C
 
-rr_BE = B_aux;
-
-for k = 1:Ny
-    [q_BE,r_BE] = deconv([rr_BE(2:end) 0],T_BE);
-    G_aux(k) = q_BE;
-    rr_BE = r_BE;
-end
-
- for i = 1:Nu
-     G(i:end,i) = G_aux(1:end-i+1,1);
- end
- 
- for i = 1:Ny
-    Haux(i,:) = conv(E(i,:),[Bm(2:end) zeros(1,Ny)]);
-end
-
-H = zeros(Ny,1);
-
-for j = 1:Ny
-    H(j,:)= Haux(j,j+1:j+1+nbm-1-1); % elementos passados, u(t-1)...u(t-1-nb) :)
-end 
-
-gt = (inv(G'*G + lambda*I))*G';
-Kgpc = gt(1,:);
-
-tbegin = 1 + max([1+nb,1+na]);
- 
 %% Calculando os sinais de controle a partir do preditor e saída
 for k = tbegin:nit
-    yp(k) = -a1*yp(k-1) - a2*yp(k-2) + b0*u(k-1) + b1*u(k-2); 
-    y(k) = yp(k) + d0(k);
-    
-    ent_fut = 1;
+
+    % ----- Saída da planta
+    angulo_sensor(k) = daqduino_read;
+
     if (ent_fut==0)
         % ---- Referência futura desconhecida
-        aux_ref = ref(k)*ones(1,Ny)';
+        aux_ref = angulo_ref(k)*ones(1,Ny)';
     elseif(ent_fut==1)
         % ---- Referência futura conhecida
-        aux_ref = ref(k:k+Ny-1)';
+        aux_ref = angulo_ref(k:k+Ny-1)';
     end
-    
-      fi = H*du(k-1) + F(1:end,:)*y(k:-1:k-nam)';
-    
-    du(k) = Kgpc*(aux_ref - fi);
-    
-    u(k) = u(k-1) + du(k);
-    e(k) = ref(k) - y(k);
+
+    fim1 = gpc_m1.H*gpc_m1.du(k-1) + gpc_m1.F(1:end,:)*angulo_sensor(k:-1:k-nam1)';
+    fim2 = gpc_m2.H*gpc_m2.du(k-1) + gpc_m2.F(1:end,:)*angulo_sensor(k:-1:k-nam2)';
+
+    gpc_m1.du(k) = gpc_m1.Kgpc*(aux_ref - fim1);
+    gpc_m2.du(k) = gpc_m2.Kgpc*(aux_ref - fim2);
+
+    gpc_m1.u(k) = gpc_m1.u(k-1) + gpc_m1.du(k);
+    gpc_m2.u(k) = gpc_m2.u(k-1) - gpc_m2.du(k);
+
+    % -------- Saturações de potência
+   
+    gpc_m1.u(k) = max(min_pot, min(gpc_m1.u(k),max_pot));
+    gpc_m2.u(k) = max(min_pot, min( gpc_m1.u(k),max_pot));
+
+    % Mandar sinal de controle para os Motores
+    u(k) = [num2str(gpc_m1.u(k)),',',num2str(gpc_m2.u(k)),'\n'];
+    daqduino_write(u(k),ts);
+
+    if(angulo_sensor(k)<=0 || angulo_sensor(k)>90)
+        angulo_sensor(k) = angulo_sensor(k-1);  % Tratar os dados errados
+    end
+
+
 end
 
 
-%%
-figure(1)
+% Limpar a Serial
+daqduino_read
+u0 = [num2str(0),',',num2str(0),'\n'];
+daqduino_write(u0,ts);
+
+
+%% Resultados
+metodo = 'GPC';
+ajuste = '';
+
 t = 0:ts:(nit-1)*ts;
-subplot(211), plot(t,ref(1:nit),'--k',t,y,'r','linewidth',2), grid on; hold on
-ylabel('reference and output'), xlabel('time (s)');
-subplot(212), plot(t,u,'b','linewidth',2), grid on; hold on, %grid on
-ylabel('control'), xlabel('time (s)');
+figure(1)
+set(gcf,'position',[50 100 800 800])
+p = plot(t,angulo_sensor,'r',t,angulo_ref,'--k');grid
+title(["Controle " metodo ajuste])
+
+ylim([0,90])
+
+indices = input("Calcular indices? ","s");
+if indices == "y"
+    % Settling criteria
+    desired_range = [0.95*angulo_sensor(end), 1.05*angulo_sensor(end)];  % Desired steady-state range
+    tolerance = 0.01;             % Tolerance for settling range
+
+    % Find the indices where the response is within the desired range
+    settling_indices = find(angulo_sensor > desired_range(1) & angulo_sensor < desired_range(2));
+
+    % Calculate the settling time
+    settling_time = t(settling_indices(1)) - t(1);
+
+    % Rise time calculation
+
+    rise_9_index = find(angulo_sensor>=0.9*angulo_sensor(end));
+    rise_1_index = find(angulo_sensor >=0.1*angulo_sensor(end));
+    rise_time = t(rise_9_index(1)) - t(rise_1_index(1));
+
+    % Plot the settling time point
+    hold on;
+
+
+    plot(t(settling_indices(1)), angulo_sensor(settling_indices(1)), 'b.','MarkerSize',20);
+    text(t(settling_indices(1)), angulo_sensor(settling_indices(1))+5,rise_time, ['Settling Time = ', num2str(settling_time)],...
+        'VerticalAlignment', 'bottom','HorizontalAlignment','center','Color','b');
+    % Plot the rise time point
+
+    plot(t(rise_9_index(1)), angulo_sensor(rise_9_index(1)), 'k.','MarkerSize',20);
+    text(t(rise_9_index(1))+0.2, angulo_sensor(rise_9_index(1))+0.5, ['Rise Time = ', num2str(rise_time)], 'VerticalAlignment', 'top','HorizontalAlignment','left');
+    ylabel("Ângulo (º)")
+    xlabel("Tempo (s)")
+
+    legend('Real','Referência')
+
+end
+
+% Potência dos Motores
+figure(2)
+set(gcf,'position',[900 100 800 800])
+subplot(211)
+plot(t,pot_motor_1)
+yticks(6:16)
+ylabel("PWM Bandwidth (%)")
+xlabel("Tempo (s)")
+ylim([6,16])
+grid
+title(['Potência do Motor 1 - ' metodo ajuste])
+
+subplot(212)
+plot(t,pot_motor_2)
+ylim([6,16])
+yticks(6:16)
+ylabel("PWM Bandwidth (%)")
+xlabel("Tempo (s)")
+grid
+title(['Potência do Motor 2 - ' metodo ajuste])
+
 
