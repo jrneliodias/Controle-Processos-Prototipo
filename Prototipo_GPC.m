@@ -57,9 +57,8 @@ angulo_ref(1:100) = 50; angulo_ref(101:200) = 50; angulo_ref(201:nit+Ny1) = 50;
 gpc_m1 = GeneralizedPredictiveController(nit,Ny1,Nu1,lambda1,ts,Am1,Bm1);
 gpc_m2 = GeneralizedPredictiveController(nit,Ny2,Nu2,lambda2,ts,Am2,Bm2);
 
-
-
-
+gpc_m1.calculateController();
+gpc_m2.calculateController();
 
 %% Iniciar o Protótipo
 start = input("Start Daqduino? ","s");

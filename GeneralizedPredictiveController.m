@@ -44,7 +44,7 @@ classdef GeneralizedPredictiveController
             delta = [1, -1];
             Atil = conv(obj.Am, delta);
             natil = length(Atil);
-            obj.F = zeros(ny, natil - 1);
+            %obj.F = zeros(ny, natil - 1);
             nb = length(obj.Bm)-1;
             G_aux = zeros(ny,nu);
             
@@ -52,12 +52,10 @@ classdef GeneralizedPredictiveController
             % Primeira equação diophantine
 
             rr = [1, zeros(1, natil - 1)];
-            q = zeros(ny, 1);
 
             for k = 1:ny
                 [q(k), rr] = deconv(rr, Atil);
                 obj.F(k, :) = rr(2:end);
-                disp(obj.F)
             end
 
             for j = 1:ny
@@ -91,15 +89,13 @@ classdef GeneralizedPredictiveController
                 Haux(i,:) = conv(obj.E(i,:), [obj.Bm(2:end), zeros(1, ny)]);
             end
 
-
-            obj.H =  zeros(ny,1);
-
             for i = 1:ny
-                obj.H(i,:) = Haux(i,i+1:i+1+nb-1-1);
+                obj.H(i,:) = Haux(i,i+1:i+1+nb-1);
             end
 
             obj.gt = (obj.G' * obj.G + obj.lambda * eye(obj.Nu)) \ obj.G';
             obj.Kgpc = obj.gt(1, :);
+            disp("executou")
 
         end
         
