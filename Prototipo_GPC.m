@@ -5,10 +5,10 @@
 clear; clc; 
 
 %% ----- Condições inciais
-nit = 500; ts = 0.01;
+nit = 200; ts = 0.01;
 
-Ny1 = 10; Nu1 = 1; lambda1 = 1;
-Ny2 = 10; Nu2 = 1; lambda2 = 1;
+Ny1 = 20; Nu1 = 2; lambda1 = 1;
+Ny2 = 20; Nu2 = 2; lambda2 = 1;
 angulo_sensor = zeros(1,nit);
 
 % -------- Saturações de potência
@@ -63,7 +63,7 @@ gpc_m2.calculateController();
 %% Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
-    daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
+    daqduino_start('COM9'); % Starts DaqDuino board connected to COM7
 end
 
 limpar = input("Limpar memória? ","s");

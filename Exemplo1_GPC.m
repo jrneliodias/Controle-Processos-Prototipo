@@ -5,16 +5,19 @@
 clear all; clc; close all
 
 %% ----- Condições inciais
-nit = 300; Ny = 15; Nu = 3; lambda = 0; ts = 0.1; 
+nit = 300; Ny = 15; Nu = 1; lambda = 1; ts = 0.1; 
 y(1:nit) = 0; yp(1:nit) = 0; u(1:nit) = 0; du(1:nit) = 0; 
 e(1:nit) = 0; fi(1:nit) = 0;
 I = eye(Nu); G = zeros(Ny,Nu); g = zeros(1,Ny); 
 G_aux = zeros(Ny,Nu); Gt = zeros(Ny,Ny);
     
 %% ----- Discretização da planta 
-A = [1 -3 2]; B = [0 0.5 -0.8];
+A = [1.0000   -0.9835]; B = [0    0.1279];
 na = length(A) - 1; nb = length(B) - 1;
-a1 = A(2); a2 = A(3); b0 = B(2); b1 = B(3);
+a1 = A(2); 
+%a2 = A(3); 
+b0 = B(2); 
+% b1 = B(3);
 
 %% ----- Discretização do Modelo
 Bm = B; Am = A; nbm = length(Bm)-1; nam = length(Am)-1;
@@ -22,7 +25,7 @@ delta = [1 -1];
 Atil = conv(Am,delta); natil = length(Atil);
 
 %% ----- Referência ----- Degrau
-ref(1:100) = 1; ref(101:200) = 2.5; ref(201:nit+Ny) = 4.5; 
+ref(1:100) = 50; ref(101:200) = 80; ref(201:nit+Ny) = 20; 
 
 %% ----- Perturbação
 d0(1:150) = 0; d0(151:nit) = 0;
@@ -70,17 +73,21 @@ end
 H = zeros(Ny,1);
 
 for j = 1:Ny
-    H(j,:)= Haux(j,j+1:j+1+nbm-1-1); % elementos passados, u(t-1)...u(t-1-nb) :)
+    H(j,:)= Haux(j,j+1:j+1+nbm-1); % elementos passados, u(t-1)...u(t-1-nb) :)
 end 
 
 gt = (inv(G'*G + lambda*I))*G';
 Kgpc = gt(1,:);
 
 tbegin = 1 + max([1+nb,1+na]);
- 
+% -------- Saturações de potência
+max_pot = 15;
+min_pot = 1;
+    
 %% Calculando os sinais de controle a partir do preditor e saída
 for k = tbegin:nit
-    yp(k) = -a1*yp(k-1) - a2*yp(k-2) + b0*u(k-1) + b1*u(k-2); 
+    yp(k) = -a1*yp(k-1) + b0*u(k-1); 
+    %yp(k) = -a1*yp(k-1) - a2*yp(k-2) + b0*u(k-1) + b1*u(k-2); 
     y(k) = yp(k) + d0(k);
     
     ent_fut = 1;
@@ -97,7 +104,9 @@ for k = tbegin:nit
     du(k) = Kgpc*(aux_ref - fi);
     
     u(k) = u(k-1) + du(k);
-    e(k) = ref(k) - y(k);
+    %e(k) = ref(k) - y(k);
+    u(k) = max(min_pot, min(u(k),max_pot));
+
 end
 
 

@@ -7,9 +7,9 @@ clear; clc;
 %% ----- Condições inciais
 nit = 500; ts = 0.01;
 
-Ny1 = 10; Nu1 = 1; lambda1 = 1;
-Ny2 = 10; Nu2 = 1; lambda2 = 1;
-angulo_sensor = zeros(1,nit+Ny1);
+Ny1 = 15; Nu1 = 1; lambda1 = 1;
+Ny2 = 15; Nu2 = 1; lambda2 = 1;
+angulo_sensor = zeros(1,nit);
 
 % -------- Saturações de potência
 max_pot = 15;
@@ -57,11 +57,10 @@ angulo_ref(1:100) = 50; angulo_ref(101:200) = 50; angulo_ref(201:nit+Ny1) = 50;
 gpc_m1 = GeneralizedPredictiveController(nit,Ny1,Nu1,lambda1,ts,Am1,Bm1);
 gpc_m2 = GeneralizedPredictiveController(nit,Ny2,Nu2,lambda2,ts,Am2,Bm2);
 
+gpc_m1.calculateController();
+gpc_m2.calculateController();
 
-
-
-
-% Iniciar o Protótipo
+%% Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
     daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
@@ -104,7 +103,7 @@ for k = tbegin:nit
     gpc_m2.du(k) = gpc_m2.Kgpc*(aux_ref - fim2);
 
     gpc_m1.u(k) = gpc_m1.u(k-1) + gpc_m1.du(k);
-    gpc_m2.u(k) = gpc_m2.u(k-1) + gpc_m2.du(k);
+    gpc_m2.u(k) = gpc_m2.u(k-1) - gpc_m2.du(k);
 
     % -------- Saturações de potência
    
@@ -136,7 +135,7 @@ ajuste = '';
 t = 0:ts:(nit-1)*ts;
 figure(1)
 set(gcf,'position',[100 100 600 500])
-p = plot(t,angulo_sensor,'r',t,angulo_ref,'--k');grid
+p = plot(t,angulo_sensor,'r',t,angulo_ref(1:end-Ny1),'--k');grid
 title(["Controle " metodo ajuste])
 
 ylim([0,90])

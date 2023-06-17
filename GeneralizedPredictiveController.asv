@@ -17,7 +17,7 @@ classdef GeneralizedPredictiveController < handle
         u
         F
     end
-
+    
     methods
         function obj = GeneralizedPredictiveController(nit, Ny, Nu, lambda, ts, Am, Bm)
             obj.nit = nit;
@@ -37,7 +37,7 @@ classdef GeneralizedPredictiveController < handle
             obj.Kgpc = zeros(1, Ny);
             obj.F = zeros(Ny, na);
         end
-
+        
         function obj = calculateController(obj)
             ny = obj.Ny;
             nu = obj.Nu;
@@ -47,7 +47,7 @@ classdef GeneralizedPredictiveController < handle
             %obj.F = zeros(ny, natil - 1);
             nb = length(obj.Bm)-1;
             G_aux = zeros(ny,nu);
-
+            
             % Cálculo dos matrizes do preditor (F, H, G)
             % Primeira equação diophantine
 
@@ -55,23 +55,22 @@ classdef GeneralizedPredictiveController < handle
 
             for k = 1:ny
                 [q(k), r] = deconv(rr, Atil);
-                obj.F(k, :) = r(2:end);
-                rr = [r(2:end) 0];
+                obj.F(k, :) = rr(2:end);
             end
-            %              disp("F")
-            %             disp(obj.F)
+             disp("F")
+            disp(obj.F)
 
             for j = 1:ny
                 if (j==1)
                     aux = [q(j) zeros(1,ny-j)];
                 else
                     aux = [q(1:j) zeros(1,ny-j)];
-
+                    
                 end
                 obj.E(j, :) = aux;
             end
-            %             disp("E")
-            %             disp(obj.E)
+            disp("E")
+            disp(obj.E)
 
             % Primeira equação diophantine
             B_aux = conv(obj.Bm, obj.E(end, :));
@@ -88,9 +87,9 @@ classdef GeneralizedPredictiveController < handle
 
             for i = 1:nu
                 obj.G(i:end,i) = G_aux(1:end-i+1,1);
-            end
-            %             disp("G")
-            %             disp(obj.G)
+            end 
+            disp("G")
+            disp(obj.G)
 
             for i = 1:ny
                 Haux(i,:) = conv(obj.E(i,:), [obj.Bm(2:end), zeros(1, ny)]);
@@ -102,9 +101,9 @@ classdef GeneralizedPredictiveController < handle
 
             obj.gt = (obj.G' * obj.G + obj.lambda * eye(obj.Nu)) \ obj.G';
             obj.Kgpc = obj.gt(1, :);
-
+         
         end
-
-
+        
+       
     end
 end
