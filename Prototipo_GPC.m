@@ -5,10 +5,10 @@
 clear; clc; 
 
 %% ----- Condições inciais
-nit = 200; ts = 0.01;
+nit = 450; ts = 0.1;
 
-Ny1 = 20; Nu1 = 2; lambda1 = 1;
-Ny2 = 20; Nu2 = 2; lambda2 = 1;
+Ny1 = 10; Nu1 = 1; lambda1 = 100;
+Ny2 = 12; Nu2 = 1; lambda2 = 200;
 angulo_sensor = zeros(1,nit);
 
 % -------- Saturações de potência
@@ -18,11 +18,11 @@ min_pot = 7;
 %% ----- Discretização do Modelo
 %Coefiientes do Modelo Smith motor 1
 Kpsmith1 = 7.737;
-thetasmith1 =0.65;
-tausmith1 =0.6;
+thetasmith1 = 0.65;
+tausmith1 = 0.6;
 
 % Coefiientes do Modelo Smith motor 2
-Kpsmith2 =  12.86;
+Kpsmith2 =    12.86;
 thetasmith2 = 0.5;
 tausmith2 =   0.66;
 
@@ -51,7 +51,11 @@ b0m2 = Bm2(2); a1m2 = Am2(2);
 
 %% ----- Referência ----- Degrau
 angulo_ref = ones(1,nit+Ny1);
-angulo_ref(1:100) = 50; angulo_ref(101:200) = 50; angulo_ref(201:nit+Ny1) = 50;
+mudref1 = nit/3;
+mudref2 = 2*nit/3;
+angulo_ref(1:mudref1) = 20;
+angulo_ref(mudref1+1:mudref2) = 50;
+angulo_ref(mudref2+1:nit+Ny1) = 80;
 
 %% Inicialização do GPC para cada motor
 gpc_m1 = GeneralizedPredictiveController(nit,Ny1,Nu1,lambda1,ts,Am1,Bm1);
@@ -63,7 +67,7 @@ gpc_m2.calculateController();
 %% Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
-    daqduino_start('COM9'); % Starts DaqDuino board connected to COM7
+    daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
 end
 
 limpar = input("Limpar memória? ","s");
@@ -189,7 +193,7 @@ grid
 title(['Potência do Motor 1 - ' metodo ajuste])
 
 subplot(212)
-plot(t,gpc_m1.u)
+plot(t,gpc_m2.u)
 ylim([6,16])
 yticks(6:16)
 ylabel("PWM Bandwidth (%)")
