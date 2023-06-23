@@ -5,16 +5,16 @@
 clear
 
 %% Condições Iniciais
-nit = 1500; ts = 0.01;
+nit = 800; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
 
 %% Referência e Pertubação
 angulo_ref = 50*ones(1,nit);
- mudref1 = 500;
- mudref2 = 1000;
- angulo_ref(1:mudref1) = 20; 
- angulo_ref(mudref1+1:mudref2) = 80; 
- angulo_ref(mudref2+1:nit) = 30;
+%  mudref1 = 500;
+%  mudref2 = 1000;
+%  angulo_ref(1:mudref1) = 20; 
+%  angulo_ref(mudref1+1:mudref2) = 80; 
+%  angulo_ref(mudref2+1:nit) = 30;
 
 
 %% ----- Variável Controlada
@@ -180,6 +180,10 @@ nr2 = length(rpoly2)-1;
 t02 = sum(P2);
 
 
+% -------- Saturações de potência
+max_pot = 15;
+min_pot = 7;
+
 %% Processamento 
 
 limpar = input("Limpar memória? ","s");
@@ -209,9 +213,6 @@ for k = 3+max(nr1,ns1):nit
     pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
 
     % -------- Saturações de potência
-    max_pot = 15;
-    min_pot = 7;
-
     pot_motor_1(k) = max(min_pot, min(pot_motor_1(k),max_pot));
     pot_motor_2(k) = max(min_pot, min(pot_motor_2(k),max_pot));
     

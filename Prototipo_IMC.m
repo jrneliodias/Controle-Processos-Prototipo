@@ -17,11 +17,16 @@ d=1;
 ajuste1 = 0.6;
 ajuste2 = 0.6;
 
+% -------- Saturações de potência
+max_pot = 15;
+min_pot = 7;
+
+
 %% ----- Referência
 angulo_ref = 50*ones(1,nit);
-angulo_ref(1:nit/2)  = 80;
-angulo_ref(nit/2 +1 : nit)  = 20;
-% angulo_ref(nit/3 +1 : 2*nit/3)  = 50;
+angulo_ref(1:nit/2)  = 30;
+angulo_ref(nit/2 +1 : nit)  = 70;
+%angulo_ref(nit/3 +1 : 2*nit/3)  = 50;
 % angulo_ref(2*nit/3 +1 : 3*nit/3)  = 50;
 
 % %% ----- Variável Controlada
@@ -118,19 +123,9 @@ for k = 2+d:nit
     pot_motor_2(k) = alpha2*pot_motor_2(k-1) + ((1-alpha2)/b0m2)*erro2(k-1)+ a1m2*((1-alpha2)/b0m2)*erro2(k-2);
 
     % Saturações do sinal de Controle
-    if pot_motor_1(k)> 15
-        pot_motor_1(k) = 15;
-    elseif pot_motor_1(k)< 7
-        pot_motor_1(k) = 7;
-
-    end
-
-    if pot_motor_2(k)> 15
-        pot_motor_2(k) = 15;
-    elseif pot_motor_2(k)< 7
-        pot_motor_2(k) = 7;
-
-    end
+    pot_motor_1(k) = max(min_pot, min(pot_motor_1(k),max_pot));
+    pot_motor_2(k) = max(min_pot, min(pot_motor_2(k),max_pot));
+    
 
     % Enviar sinal de controle para os motores
     u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
@@ -155,13 +150,15 @@ daqduino_write(u0,ts);
 
 
 %% ----- Plotar sinais
-metodo = 'Alocações de Polos por IMC';
-ajuste = '';
+metodo = 'Controle IMC';
+ajuste = ' com mudança de referência e pertubação';
 
 t = 0:ts:(nit-1)*ts;
 figure(1)
 p = plot(t,angulo_sensor,'r',t,angulo_ref,'--k');grid
 title(["Controle " metodo ajuste])
+ylabel("Ângulo (º)")
+xlabel("Tempo (s)")
 
 ylim([0,90])
 
@@ -195,6 +192,7 @@ if indices == "y"
     plot(t(rise_9_index(1)), angulo_sensor(rise_9_index(1)), 'k.','MarkerSize',20);
     text(t(rise_9_index(1))+0.2, angulo_sensor(rise_9_index(1))+0.5, ['Rise Time = ', num2str(rise_time)], 'VerticalAlignment', 'top','HorizontalAlignment','left');
 
+
     legend('Real','Referência')
 
 end
@@ -204,12 +202,16 @@ figure(2)
 subplot(211)
 plot(t,pot_motor_1)
 ylim([6,16])
+ylabel("PWM Bandwidth (%)")
+xlabel("Tempo (s)")
 grid
 title(['Potência do Motor 1 - ' metodo ajuste])
 
 subplot(212)
 plot(t,pot_motor_2)
 ylim([6,16])
+ylabel("PWM Bandwidth (%)")
+xlabel("Tempo (s)")
 grid
 title(['Potência do Motor 2 - ' metodo ajuste])
 
