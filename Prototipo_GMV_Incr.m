@@ -5,16 +5,16 @@
 clear
 
 %% Condições Iniciais
-nit = 800; ts = 0.01;
+nit = 1500; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
 
 %% Referência e Pertubação
-angulo_ref = 50*ones(1,nit);
-%  mudref1 = 500;
-%  mudref2 = 1000;
-%  angulo_ref(1:mudref1) = 20; 
-%  angulo_ref(mudref1+1:mudref2) = 80; 
-%  angulo_ref(mudref2+1:nit) = 30;
+angulo_ref = 70*ones(1,nit);
+mudref1 = 500;
+mudref2 = 1000;
+angulo_ref(1:mudref1) = 20;
+angulo_ref(mudref1+1:mudref2) = 80;
+angulo_ref(mudref2+1:nit) = 30;
 
 
 %% ----- Variável Controlada
@@ -28,7 +28,7 @@ u = strings(1,nit); u(1:nit) = "0,0";
 % Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
-    daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
+    daqduino_start('COM9'); % Starts DaqDuino board connected to COM7
 end
 
 %% Planta e Modelo
@@ -181,7 +181,7 @@ t02 = sum(P2);
 
 
 % -------- Saturações de potência
-max_pot = 15;
+max_pot = 20;
 min_pot = 7;
 
 %% Processamento 
@@ -289,17 +289,17 @@ figure(2)
 set(gcf,'position',[800 100 650 500])
 subplot(211)
 plot(t,pot_motor_1)
-yticks(6:16)
+yticks(6:20)
 ylabel("PWM Bandwidth (%)")
 xlabel("Tempo (s)")
-ylim([6,16])
+ylim([6,20])
 grid
 title(['Potência do Motor 1 - ' metodo ajuste])
 
 subplot(212)
 plot(t,pot_motor_2)
-ylim([6,16])
-yticks(6:16)
+ylim([6,20])
+yticks(6:20)
 ylabel("PWM Bandwidth (%)")
 xlabel("Tempo (s)")
 grid

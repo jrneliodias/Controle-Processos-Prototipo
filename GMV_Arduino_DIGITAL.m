@@ -2,19 +2,19 @@
 % Engenharia de Controle de Processos
 
 %clc; clear all; close all
-clear
+
 
 %% Condições Iniciais
-nit = 800; ts = 0.01;
+nit = 50; ts = 0.01;
 angulo_sensor = zeros(1,nit); 
 
 %% Referência e Pertubação
-angulo_ref = 50*ones(1,nit);
- mudref1 = ;
- mudref2 = 1000;
- angulo_ref(1:mudref1) = 20; 
- angulo_ref(mudref1+1:mudref2) = 80; 
- angulo_ref(mudref2+1:nit) = 30;
+angulo_ref = 70*ones(1,nit);
+mudref1 = 500;
+mudref2 = 1000;
+angulo_ref(1:mudref1) = 20;
+angulo_ref(mudref1+1:mudref2) = 80;
+angulo_ref(mudref2+1:nit) = 30;
 
 
 %% ----- Variável Controlada
@@ -28,20 +28,18 @@ u = strings(1,nit); u(1:nit) = "0,0";
 % Iniciar o Protótipo
 start = input("Start Daqduino? ","s");
 if start == "y"
-    daqduino_start('COM6'); % Starts DaqDuino board connected to COM7
+    arduino = serialport("COM7",250000,"Timeout",5);
+    pause(2)
+    writeline(arduino,'0');
+    
 end
 
 %% Planta e Modelo
 
 %Coefiientes do Modelo Smith motor 1
-Kpsmith1 = 7.737;
-thetasmith1 =0.65;
-tausmith1 =0.6;
-
-% Coefiientes do Modelo Smith motor 2
-Kpsmith2 =  12.86;
-thetasmith2 = 0.5;
-tausmith2 =   0.66;
+Kpsmith1 = 0.999;
+thetasmith1 = 0.65;
+tausmith1 = 1.827;
 
 % Função de transferência motor 1
 Gm1 = tf(Kpsmith1,[tausmith1 1],'InputDelay',thetasmith1)
@@ -53,15 +51,6 @@ Bm1 = Gmz1.num{1}; Am1= Gmz1.den{1};
 % Coeficientes do Modelo
 b0m1 = Bm1(2); a1m1 = Am1(2);
 
-% Função de transferência motor 2
-Gm2 = tf(Kpsmith2,[tausmith2 1],'InputDelay',thetasmith2)
-
-% Discretização do modelo
-Gmz2 = c2d(Gm2,ts);
-Bm2 = Gmz2.num{1}; Am2= Gmz2.den{1};
-
-% Coeficientes do Modelo
-b0m2 = Bm2(2); a1m2 = Am2(2);
 
 %% Determinar E(z^-1) e S(z^-1)
 % na = 1;
@@ -85,7 +74,7 @@ ne1 = d-1;
 % Definir o polinômio P1(z)
 P1 = zeros(ne1 + ns1 + 2,1);
 P1(1) = 1;
-P1(2) = -0.98;
+%P1(2) = -0.98;
 
 % Encontrar o polinômio E1(z) e S1(z)
 Am1_barra1 = conv(Am1,[1 -1]);
@@ -125,102 +114,40 @@ nr1 = length(rpoly1)-1;
 % Calculo do polinômio T1(z)
 t01 = sum(P1);
 
-
-%% Projeto do GMV motor 2
-
-
-na2 = 1;
-nb2 = 0;
-ns2 = na2;
-ne2 = d-1;
-
-% Definir o polinômio P2(z)
-P2 = zeros(ne2 + ns2 + 2,1);
-P2(1) = 1;
-P2(2) = -0.98;
-
-% Encontrar o polinômio E2(z) e S2(z)
-Am2_barra = conv(Am2,[1 -1]);
-
-mat_Scoef2 = [zeros(ne2+1,ns2+1);eye(ns2+1)];
-
-
-mat_EAcoef2 = zeros(ne2 + ns2 + 2, ne2+1);
-am2_barra_len = length(Am2_barra);
-
-for k = 1:ne2+1
-    mat_EAcoef2(k:k+am2_barra_len-1,k) = Am2_barra';
-end
-
-mat_SEcoef2 = [mat_EAcoef2 mat_Scoef2];
-
-
-EScoef2_array = mat_SEcoef2\P2;
-
-epoly2=  EScoef2_array(1:ne2+1)';
-spoly2 = EScoef2_array(ne2+2:end)';
-
-% Encontrar o polinômio R por meio do Q1(z) e B1(z)
-
-q02 = 5;
-q0_barra2 = q02;%*[1 -1];
-
-% Calculo do polinômio R2(z)
-%rpoly2 = [Bm2(2)+epoly2, 0] +q0_barra2;
-%rpoly2 = Bm2(2)+ epoly2+ q02;
-
-BE_poly2 = conv(Bm2,epoly2);
-BE_poly_len2 = length(BE_poly2);
-
-%rpoly2 = BE_poly2 + [zeros(1,BE_poly_len2-2) q0_barra2];
-rpoly2 = BE_poly2(2) + q02;
-nr2 = length(rpoly2)-1;
-
-% Calculo do polinômio T2(z)
-t02 = sum(P2);
-
-
 % -------- Saturações de potência
-max_pot = 15;
-min_pot = 7;
+max_pot = 100;
+min_pot = 0;
 
 %% Processamento 
 
 limpar = input("Limpar memória? ","s");
 if limpar == "y"
-
     % Limpar Serial
-    daqduino_read;
-    u0 = [num2str(0),',',num2str(0),'\n'];
-    daqduino_write(u0,ts);
-
-    daqduino_read;
-    daqduino_write(u0,ts);
+    flush(arduino);
 end
 
 for k = 3+max(nr1,ns1):nit
      
     % ----- Saída da planta
-    angulo_sensor(k) = daqduino_read;
+    angulo_sensor(k) = str2double(readline(arduino));
 
     % Sinal de controle GMV
     %delta_pot_motor_1(k) =  (-rpoly1(2:end)*delta_pot_motor_1(k-1:-1:k-nr1)'+ t01*angulo_ref(k) - spoly1*angulo_sensor(k:-1:k-ns1)')/rpoly1(1);
     %delta_pot_motor_2(k) =  (-rpoly2(2:end)*delta_pot_motor_2(k-1:-1:k-nr2)'+ t02*angulo_ref(k) - spoly2*angulo_sensor(k:-1:k-ns2)')/rpoly2(1);
     delta_pot_motor_1(k) =  (t01*angulo_ref(k) - spoly1*angulo_sensor(k:-1:k-ns1)')/rpoly1(1);
-    delta_pot_motor_2(k) =  (t02*angulo_ref(k) - spoly2*angulo_sensor(k:-1:k-ns2)')/rpoly2(1);
 
     pot_motor_1(k) = pot_motor_1(k-1) + delta_pot_motor_1(k);
-    pot_motor_2(k) = pot_motor_2(k-1) - delta_pot_motor_2(k);
 
     % -------- Saturações de potência
     pot_motor_1(k) = max(min_pot, min(pot_motor_1(k),max_pot));
-    pot_motor_2(k) = max(min_pot, min(pot_motor_2(k),max_pot));
-    
+ 
     
 
     % Mandar sinal de controle para os Motores
-    u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
-    daqduino_write(u(k),ts);
+    %u(k) = [num2str(pot_motor_1(k)),',',num2str(pot_motor_2(k)),'\n'];
+    u(k) = [num2str(pot_motor_1(k)) '\r'];
+    writeline(arduino,u(k));
+    
 
     if(angulo_sensor(k)<=0 || angulo_sensor(k)>90)
         angulo_sensor(k) = angulo_sensor(k-1);  % Tratar os dados errados
@@ -231,9 +158,11 @@ end
 
 
 % Limpar a Serial
-daqduino_read
-u0 = [num2str(0),',',num2str(0),'\n'];
-daqduino_write(u0,ts);
+str2double(readline(arduino))
+writeline(arduino,'0');
+
+%u0 = [num2str(0),',',num2str(0),'\n'];
+%daqduino_write(u0,ts);
 
 
 %% Resultados
@@ -289,17 +218,17 @@ figure(2)
 set(gcf,'position',[800 100 650 500])
 subplot(211)
 plot(t,pot_motor_1)
-yticks(6:16)
+yticks(6:20)
 ylabel("PWM Bandwidth (%)")
 xlabel("Tempo (s)")
-ylim([6,16])
+ylim([6,20])
 grid
 title(['Potência do Motor 1 - ' metodo ajuste])
 
 subplot(212)
 plot(t,pot_motor_2)
-ylim([6,16])
-yticks(6:16)
+ylim([6,20])
+yticks(6:20)
 ylabel("PWM Bandwidth (%)")
 xlabel("Tempo (s)")
 grid
